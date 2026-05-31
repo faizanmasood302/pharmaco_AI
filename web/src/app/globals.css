@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+:root {
+  --background: #FAFAF8;
+  --foreground: #0f1e1c;
+  --surface: #ffffff;
+  --on-surface: #0f1e1c;
+  --surface-container-low: #e6f7f2;
+  --surface-container-lowest: #ffffff;
+  --on-surface-variant: #3e4946;
+  --primary: #006156;
+  --on-primary: #ffffff;
+  --primary-container: #0e7c6e;
+  --on-primary-container: #befff1;
+  --secondary: #006b59;
+  --secondary-container: #7cf8d9;
+  --on-secondary-container: #00725e;
+  --error: #ba1a1a;
+  --error-container: #ffdad6;
+  --outline: #6e7976;
+  --outline-variant: #bdc9c5;
+  --surface-variant: #d5e6e1;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-on-surface: var(--on-surface);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-secondary: var(--secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-error: var(--error);
+  --color-error-container: var(--error-container);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-surface-variant: var(--surface-variant);
+  
+  --font-sans: var(--font-dm-sans);
+  --font-serif: var(--font-source-serif);
+  --font-mono: var(--font-jetbrains-mono);
+
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.75rem;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
+}
+
+.glass-card {
+  background: #FFFFFF;
+  border: 1px solid #D1E3E0;
+  box-shadow: 0px 4px 12px rgba(14, 124, 110, 0.08);
+  transition: box-shadow 0.3s ease;
+}
+
+.glass-card:hover {
+  box-shadow: 0px 6px 16px rgba(14, 124, 110, 0.12);
+}
+
+.input-clinical {
+  border: 1px solid #D1E3E0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-clinical:focus {
+  border-color: #17A98E;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(23, 169, 142, 0.2);
+}
+
+.pill-ultra-rapid {
+  background-color: #006b59;
+  color: #ffffff;
+}
+
+.pill-normal {
+  background-color: #e6f7f2;
+  color: #006156;
+}
+
+.pill-poor {
+  background-color: #ba1a1a;
+  color: #ffffff;
+}

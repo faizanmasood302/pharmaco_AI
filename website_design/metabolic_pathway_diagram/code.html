@@ -1,0 +1,342 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Metabolic Pathway Diagram - GenomicLens MD</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error-container": "#ffdad6",
+                        "on-tertiary-container": "#ffefe8",
+                        "on-surface-variant": "#3e4946",
+                        "tertiary-fixed-dim": "#ffb693",
+                        "on-primary-fixed-variant": "#005047",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-tint": "#006b5e",
+                        "primary-fixed": "#98f3e2",
+                        "on-error-container": "#93000a",
+                        "background": "#ecfdf8",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-primary": "#ffffff",
+                        "on-secondary-fixed-variant": "#005142",
+                        "on-secondary": "#ffffff",
+                        "inverse-surface": "#243330",
+                        "on-primary-fixed": "#00201b",
+                        "on-primary-container": "#befff1",
+                        "on-surface": "#0f1e1c",
+                        "surface-container-highest": "#d5e6e1",
+                        "surface-container": "#e0f2ed",
+                        "secondary-container": "#7cf8d9",
+                        "secondary-fixed-dim": "#5edbbe",
+                        "surface": "#ecfdf8",
+                        "outline": "#6e7976",
+                        "tertiary-container": "#b2521b",
+                        "error": "#ba1a1a",
+                        "on-secondary-fixed": "#002019",
+                        "outline-variant": "#bdc9c5",
+                        "on-tertiary-fixed-variant": "#7a3000",
+                        "surface-bright": "#ecfdf8",
+                        "surface-dim": "#cdded9",
+                        "primary": "#006156",
+                        "inverse-on-surface": "#e3f4f0",
+                        "inverse-primary": "#7bd7c6",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-container-high": "#dbece7",
+                        "surface-container-low": "#e6f7f2",
+                        "surface-variant": "#d5e6e1",
+                        "tertiary": "#923b01",
+                        "secondary-fixed": "#7cf8d9",
+                        "on-background": "#0f1e1c",
+                        "on-error": "#ffffff",
+                        "on-secondary-container": "#00725e",
+                        "primary-container": "#0e7c6e",
+                        "primary-fixed-dim": "#7bd7c6",
+                        "secondary": "#006b59"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-max": "1440px",
+                        "margin-mobile": "16px",
+                        "margin-desktop": "40px",
+                        "unit": "4px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Open Sans"],
+                        "label-sm": ["Open Sans"],
+                        "data-mono": ["Open Sans"],
+                        "display-lg": ["Open Sans"],
+                        "body-md": ["Open Sans"],
+                        "display-lg-mobile": ["Open Sans"],
+                        "body-serif": ["Open Sans"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "700" }],
+                        "data-mono": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "display-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "body-serif": ["17px", { "lineHeight": "26px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #FAFAF8; } /* Surface 0 */
+        .glass-card {
+            background: #FFFFFF;
+            border: 1px solid #D1E3E0;
+            box-shadow: 0 4px 12px rgba(14, 124, 110, 0.08);
+            transition: box-shadow 0.2s ease-in-out;
+        }
+        .glass-card:hover {
+            box-shadow: 0 6px 16px rgba(14, 124, 110, 0.12);
+        }
+        .pathway-arrow {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .pathway-arrow::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+            border-left: 8px solid;
+        }
+        .arrow-normal { background-color: #17A98E; height: 3px; }
+        .arrow-normal::after { border-left-color: #17A98E; }
+        
+        .arrow-accelerated { background-color: #F28B82; height: 4px; } /* Coral representation */
+        .arrow-accelerated::after { border-left-color: #F28B82; right: -8px; border-top-width: 8px; border-bottom-width: 8px; border-left-width: 10px;}
+        
+        .arrow-blocked { border-top: 3px dashed #9AA0A6; height: 0; background: transparent; }
+        .arrow-blocked::after { border-left-color: #9AA0A6; right: -6px; top: -3px; }
+        
+        .bg-highlight-tint { background-color: #E4F7F4; }
+        .text-active-teal { color: #17A98E; }
+        .border-active-teal { border-color: #17A98E; }
+        .bg-active-teal { background-color: #17A98E; }
+    </style>
+</head>
+<body class="font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col md:flex-row">
+<!-- SideNavBar (Desktop) / Hidden Mobile -->
+<nav class="hidden md:flex bg-surface-container-low dark:bg-surface-container-lowest fixed left-0 top-0 h-full w-[240px] flex-col py-6 z-50 border-r border-outline-variant/40 shadow-sm">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center overflow-hidden">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">local_hospital</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-extrabold text-primary dark:text-primary-fixed">GenomicLens MD</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Precision Support v2.4</p>
+</div>
+</div>
+</div>
+<div class="px-4 mb-6">
+<button class="w-full bg-active-teal hover:bg-primary text-white font-label-sm text-label-sm py-3 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">search</span>
+                New Patient Search
+            </button>
+</div>
+<div class="flex-1 overflow-y-auto">
+<div class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 hover:text-primary transition-all duration-200 cursor-pointer rounded-xl">
+<span class="material-symbols-outlined">medication</span>
+<span class="font-label-sm text-label-sm">Prescription Console</span>
+</div>
+<div class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 hover:text-primary transition-all duration-200 cursor-pointer rounded-xl">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-label-sm text-label-sm">AI Pipeline</span>
+</div>
+<div class="flex items-center gap-3 bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-xl px-4 py-3 mx-2 my-1 font-bold shadow-sm cursor-pointer active:scale-95 transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+<span class="font-label-sm text-label-sm">Metabolic Pathways</span>
+</div>
+<div class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 hover:text-primary transition-all duration-200 cursor-pointer rounded-xl">
+<span class="material-symbols-outlined">description</span>
+<span class="font-label-sm text-label-sm">Clinical Reports</span>
+</div>
+<div class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 hover:text-primary transition-all duration-200 cursor-pointer rounded-xl">
+<span class="material-symbols-outlined">assignment_ind</span>
+<span class="font-label-sm text-label-sm">Adherence Triage</span>
+</div>
+</div>
+<div class="mt-auto px-2 border-t border-outline-variant/30 pt-4">
+<div class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 hover:text-primary transition-all duration-200 cursor-pointer rounded-xl">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-sm text-label-sm">Support</span>
+</div>
+<div class="flex items-center gap-3 text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 hover:text-primary transition-all duration-200 cursor-pointer rounded-xl">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-sm text-label-sm">Archive</span>
+</div>
+</div>
+</nav>
+<!-- TopAppBar (Mobile) -->
+<header class="md:hidden bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md flex justify-between items-center w-full px-margin-mobile h-16 z-40 border-b border-outline-variant/30 shadow-sm shadow-primary/5 fixed top-0 left-0">
+<div class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed">GenomicLens</div>
+<div class="flex gap-2 text-primary">
+<span class="material-symbols-outlined cursor-pointer hover:bg-surface-variant/50 p-2 rounded-full">notifications</span>
+<span class="material-symbols-outlined cursor-pointer hover:bg-surface-variant/50 p-2 rounded-full">settings</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-[240px] pt-20 md:pt-8 px-margin-mobile md:px-margin-desktop pb-12 max-w-container-max mx-auto w-full">
+<!-- Header Section -->
+<div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<h2 class="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface">CYP2D6 Pathway Analysis</h2>
+<span class="bg-error-container text-on-error-container font-label-sm text-label-sm px-2 py-1 rounded-full uppercase tracking-wider">Poor Metabolizer</span>
+</div>
+<p class="text-on-surface-variant font-body-serif text-body-serif">Patient: PT-88241 • Codeine to Morphine Conversion</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 rounded border border-active-teal text-active-teal font-label-sm text-label-sm hover:bg-surface-variant transition-colors">Export Report</button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Main Diagram Area (Spans 8 cols on large screens) -->
+<div class="lg:col-span-8 glass-card rounded-xl p-8 flex flex-col min-h-[500px]">
+<h3 class="font-headline-md text-headline-md text-primary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined">schema</span> Pathway Visualization
+                </h3>
+<!-- Pathway Canvas -->
+<div class="flex-1 bg-surface-container-lowest rounded-lg border border-outline-variant/30 p-8 flex flex-col justify-center relative overflow-hidden">
+<!-- Ambient Background Decoration -->
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary-fixed rounded-full opacity-10 blur-3xl"></div>
+<div class="absolute -bottom-24 -left-24 w-64 h-64 bg-secondary-container rounded-full opacity-10 blur-3xl"></div>
+<!-- Flow Container -->
+<div class="flex flex-col md:flex-row items-center justify-between gap-4 relative z-10">
+<!-- Prodrug Node -->
+<div class="w-40 bg-white border border-outline-variant rounded-lg p-4 shadow-sm flex flex-col items-center text-center">
+<span class="material-symbols-outlined text-on-surface-variant mb-2">medication_liquid</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-1">Prodrug</span>
+<span class="font-headline-md text-headline-md text-on-surface">Codeine</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant mt-2 text-xs">30mg / 6hrs</span>
+</div>
+<!-- Arrow 1 (Blocked) -->
+<div class="flex-1 w-full md:w-auto h-24 md:h-auto flex flex-col items-center justify-center relative min-w-[120px]">
+<div class="absolute top-1/2 left-0 w-full pathway-arrow arrow-blocked -translate-y-1/2"></div>
+<div class="bg-white border border-error text-error rounded-full p-1 z-10 -mt-6">
+<span class="material-symbols-outlined text-sm font-bold">close</span>
+</div>
+</div>
+<!-- Enzyme Node -->
+<div class="w-48 bg-error-container border border-error/20 rounded-lg p-4 shadow-sm flex flex-col items-center text-center relative transform md:-translate-y-8">
+<div class="absolute -top-3 -right-3 w-6 h-6 bg-error rounded-full flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-xs">warning</span>
+</div>
+<span class="material-symbols-outlined text-on-error-container mb-2">biotech</span>
+<span class="font-label-sm text-label-sm text-on-error-container uppercase tracking-wider mb-1">Enzyme</span>
+<span class="font-headline-md text-headline-md text-on-error-container">CYP2D6</span>
+<div class="mt-2 bg-white/50 px-2 py-1 rounded text-xs font-data-mono text-on-error-container">
+                                Phenotype: Poor (*4/*4)
+                            </div>
+</div>
+<!-- Arrow 2 (Reduced Flow - represented by dashed) -->
+<div class="flex-1 w-full md:w-auto h-24 md:h-auto flex flex-col items-center justify-center relative min-w-[120px]">
+<div class="absolute top-1/2 left-0 w-full pathway-arrow arrow-blocked opacity-50 -translate-y-1/2"></div>
+</div>
+<!-- Metabolite Node (Ghosted due to block) -->
+<div class="w-40 bg-surface-variant/30 border border-outline-variant/30 rounded-lg p-4 shadow-sm flex flex-col items-center text-center opacity-60">
+<span class="material-symbols-outlined text-outline mb-2">science</span>
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider mb-1">Active Metabolite</span>
+<span class="font-headline-md text-headline-md text-outline">Morphine</span>
+<span class="font-data-mono text-data-mono text-outline mt-2 text-xs">Expected: ~10%</span>
+<span class="font-data-mono text-data-mono text-error mt-1 text-xs font-bold">Actual: &lt;1%</span>
+</div>
+</div>
+<!-- Alternative Pathway Context -->
+<div class="mt-12 border-t border-outline-variant/30 pt-6 flex justify-center">
+<div class="flex items-center gap-4 text-sm">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Alternative Shunt:</span>
+<div class="flex items-center gap-2">
+<span class="font-data-mono text-data-mono bg-surface-variant px-2 py-1 rounded">CYP3A4</span>
+<span class="material-symbols-outlined text-active-teal text-sm">arrow_forward</span>
+<span class="font-data-mono text-data-mono">Norcodeine (Inactive)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Sidebar / Legend (Spans 4 cols on large screens) -->
+<div class="lg:col-span-4 flex flex-col gap-6">
+<!-- Clinical Implications Panel -->
+<div class="glass-card rounded-xl p-6 bg-highlight-tint/30">
+<h3 class="font-headline-md text-headline-md text-on-surface flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-error">assignment_late</span> Clinical Implications
+                    </h3>
+<div class="font-body-serif text-body-serif text-on-surface-variant space-y-4">
+<p>Patient possesses two non-functional alleles (*4/*4) for CYP2D6, resulting in a <strong>Poor Metabolizer</strong> phenotype.</p>
+<p>Conversion of the prodrug Codeine to its active metabolite Morphine is severely impaired. Patient is unlikely to experience adequate analgesia from standard doses.</p>
+<div class="bg-surface p-4 rounded border border-outline-variant/50 mt-4">
+<span class="font-label-sm text-label-sm text-primary uppercase block mb-2">Action Required</span>
+<p class="font-body-md text-sm">Consider alternative analgesics not dependent on CYP2D6 activation (e.g., Morphine, Hydromorphone) based on patient pain severity.</p>
+</div>
+</div>
+</div>
+<!-- Legend -->
+<div class="glass-card rounded-xl p-6 flex-1">
+<h4 class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-4 border-b border-outline-variant/30 pb-2">Pathway Legend</h4>
+<ul class="space-y-4">
+<li class="flex items-center gap-4">
+<div class="w-12 h-3 bg-active-teal relative pathway-arrow arrow-normal"></div>
+<span class="font-body-md text-sm text-on-surface">Normal Conversion Flow</span>
+</li>
+<li class="flex items-center gap-4">
+<div class="w-12 h-4 bg-[#F28B82] relative pathway-arrow arrow-accelerated"></div>
+<span class="font-body-md text-sm text-on-surface">Accelerated Flow (Ultra-Rapid)</span>
+</li>
+<li class="flex items-center gap-4">
+<div class="w-12 border-t-2 dashed border-[#9AA0A6] relative pathway-arrow arrow-blocked flex justify-center items-center">
+<span class="material-symbols-outlined text-error text-[16px] bg-white rounded-full absolute">close</span>
+</div>
+<span class="font-body-md text-sm text-on-surface">Blocked / Impaired Conversion</span>
+</li>
+</ul>
+<h4 class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mt-8 mb-4 border-b border-outline-variant/30 pb-2">Phenotype Badges</h4>
+<div class="flex flex-wrap gap-2">
+<span class="bg-secondary text-white font-label-sm text-label-sm px-2 py-1 rounded-full">Ultra-Rapid</span>
+<span class="bg-highlight-tint text-primary font-label-sm text-label-sm px-2 py-1 rounded-full">Normal</span>
+<span class="bg-error-container text-error font-label-sm text-label-sm px-2 py-1 rounded-full">Poor</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full bg-surface-container-lowest border-t border-outline-variant/30 z-50 px-2 py-2 flex justify-around">
+<div class="flex flex-col items-center p-2 text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined">medication</span>
+<span class="text-[10px] mt-1 font-medium">Console</span>
+</div>
+<div class="flex flex-col items-center p-2 bg-secondary-container text-on-secondary-container rounded-lg px-4">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+<span class="text-[10px] mt-1 font-bold">Pathways</span>
+</div>
+<div class="flex flex-col items-center p-2 text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined">description</span>
+<span class="text-[10px] mt-1 font-medium">Reports</span>
+</div>
+</nav>
+</body></html>

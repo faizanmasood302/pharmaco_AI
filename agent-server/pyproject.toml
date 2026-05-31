@@ -1,0 +1,42 @@
+[project]
+name = "agent-server"
+version = "0.2.0"
+description = "Pharmacogenomic multi-agent API"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "cryptography>=48.0.0",
+    "fastapi>=0.136.3",
+    "groq>=1.2.0",
+    "pyjwt>=2.13.0",
+    "python-dotenv>=1.2.2",
+    "python-json-logger>=4.1.0",
+    "python-multipart>=0.0.29",
+    "slowapi>=0.1.9",
+    "supabase>=2.30.0",
+    "uvicorn>=0.48.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.15.0",
+    "mypy>=1.15.0",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "T20"]
+ignore = []
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+exclude = ["tests", "venv", ".venv"]

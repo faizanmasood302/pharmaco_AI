@@ -1,0 +1,39 @@
+{
+  "resourceType": "Bundle",
+  "type": "collection",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "PGX-004",
+        "name": [{ "family": "Rivera", "given": ["Alex"] }],
+        "gender": "male",
+        "birthDate": "1990-06-15"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "81236-5",
+              "display": "CYP2D6 metabolizer phenotype"
+            }
+          ],
+          "text": "CYP2D6 Pharmacogenomic Phenotype"
+        },
+        "valueCodeableConcept": {
+          "text": "Ultra-Rapid Metabolizer",
+          "coding": [
+            {
+              "display": "CYP2D6 Ultra-Rapid Metabolizer"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

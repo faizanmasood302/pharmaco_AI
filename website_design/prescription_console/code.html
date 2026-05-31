@@ -1,0 +1,384 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Prescription Console - GenomicLens</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "error-container": "#ffdad6",
+                      "on-tertiary-container": "#ffefe8",
+                      "on-surface-variant": "#3e4946",
+                      "tertiary-fixed-dim": "#ffb693",
+                      "on-primary-fixed-variant": "#005047",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-tint": "#006b5e",
+                      "primary-fixed": "#98f3e2",
+                      "on-error-container": "#93000a",
+                      "background": "#ecfdf8",
+                      "tertiary-fixed": "#ffdbcc",
+                      "on-primary": "#ffffff",
+                      "on-secondary-fixed-variant": "#005142",
+                      "on-secondary": "#ffffff",
+                      "inverse-surface": "#243330",
+                      "on-primary-fixed": "#00201b",
+                      "on-primary-container": "#befff1",
+                      "on-surface": "#0f1e1c",
+                      "surface-container-highest": "#d5e6e1",
+                      "surface-container": "#e0f2ed",
+                      "secondary-container": "#7cf8d9",
+                      "secondary-fixed-dim": "#5edbbe",
+                      "surface": "#ecfdf8",
+                      "outline": "#6e7976",
+                      "tertiary-container": "#b2521b",
+                      "error": "#ba1a1a",
+                      "on-secondary-fixed": "#002019",
+                      "outline-variant": "#bdc9c5",
+                      "on-tertiary-fixed-variant": "#7a3000",
+                      "surface-bright": "#ecfdf8",
+                      "surface-dim": "#cdded9",
+                      "primary": "#006156",
+                      "inverse-on-surface": "#e3f4f0",
+                      "inverse-primary": "#7bd7c6",
+                      "on-tertiary-fixed": "#351000",
+                      "surface-container-high": "#dbece7",
+                      "surface-container-low": "#e6f7f2",
+                      "surface-variant": "#d5e6e1",
+                      "tertiary": "#923b01",
+                      "secondary-fixed": "#7cf8d9",
+                      "on-background": "#0f1e1c",
+                      "on-error": "#ffffff",
+                      "on-secondary-container": "#00725e",
+                      "primary-container": "#0e7c6e",
+                      "primary-fixed-dim": "#7bd7c6",
+                      "secondary": "#006b59"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "container-max": "1440px",
+                      "margin-mobile": "16px",
+                      "margin-desktop": "40px",
+                      "unit": "4px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "headline-md": [
+                              "Open Sans"
+                      ],
+                      "label-sm": [
+                              "Open Sans"
+                      ],
+                      "data-mono": [
+                              "Open Sans"
+                      ],
+                      "display-lg": [
+                              "Open Sans"
+                      ],
+                      "body-md": [
+                              "Open Sans"
+                      ],
+                      "display-lg-mobile": [
+                              "Open Sans"
+                      ],
+                      "body-serif": [
+                              "Open Sans"
+                      ]
+              },
+              "fontSize": {
+                      "headline-md": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.04em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "data-mono": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "display-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-serif": [
+                              "17px",
+                              {
+                                      "lineHeight": "26px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        body {
+            background-color: #FAFAF8; /* Surface 0 (Page): Warm White */
+        }
+        
+        .glass-card {
+            background: #FFFFFF;
+            border: 1px solid #D1E3E0;
+            box-shadow: 0px 4px 12px rgba(14, 124, 110, 0.08); /* 0E7C6E at 8% */
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            box-shadow: 0px 6px 16px rgba(14, 124, 110, 0.12);
+        }
+
+        .input-clinical {
+            border: 1px solid #D1E3E0;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .input-clinical:focus {
+            border-color: #17A98E; /* Active Teal placeholder */
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(23, 169, 142, 0.2);
+        }
+
+        /* Pill Badges */
+        .pill-ultra-rapid {
+            background-color: #006b59; /* secondary */
+            color: #ffffff;
+        }
+        .pill-normal {
+            background-color: #e6f7f2; /* highlight tint approx */
+            color: #006156; /* primary teal */
+        }
+        .pill-poor {
+            background-color: #ba1a1a; /* error/muted red */
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body class="text-on-surface antialiased flex h-screen overflow-hidden">
+<!-- SideNavBar (Hidden on Mobile) -->
+<nav class="hidden md:flex flex-col bg-surface-container-low dark:bg-surface-container-lowest fixed left-0 top-0 h-full w-[240px] bg-surface-container-low border-r border-outline-variant/40 shadow-sm py-6 z-50">
+<!-- Header -->
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3 mb-2">
+<img alt="Medical Facility Logo" class="w-10 h-10 rounded-lg shadow-sm" data-alt="A clean, modern medical facility logo icon featuring an abstract double helix or microscope lens motif. The logo utilizes a sophisticated primary teal color against a pristine white background. The design is minimal, communicating precision, trust, and advanced clinical technology suitable for a genetic medicine platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIHNjqJaoBxq8eF0Qq0mJeImJ339WBmT9kow2L8fTS0VBNphF2olppuxEenpBuh0aVVbOsuo0FkTHRQzSPMbJdUiZj2TwbxAg8II9SfVuKYNpgcC-fWrP7xTIWI8smkJp6BKp66NdXazgIGVPTpJmH4azlI8UhAbZlXoi1K1cuhQsE2tCryN7rexjidPOL4st_GT8R5sZ_Xs6Qodv08-dvS-9uXYgnW4nGXp3Ag7MlSVaLiGTBMcRRrG8fR6mme0--VhnkgzHF20o">
+<div>
+<h1 class="font-headline-md text-headline-md font-extrabold text-primary dark:text-primary-fixed leading-tight">GenomicLens MD</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant/70">Precision Support v2.4</p>
+</div>
+</div>
+<button class="w-full mt-4 bg-primary text-on-primary font-label-sm text-label-sm py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors shadow-sm flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">search</span>
+                New Patient Search
+            </button>
+</div>
+<!-- Navigation Links -->
+<div class="flex-1 overflow-y-auto mt-4 px-2">
+<!-- Active: Prescription Console -->
+<a class="flex items-center gap-3 bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-xl px-4 py-3 mx-2 my-1 font-bold shadow-sm" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">medication</span>
+<span class="font-label-sm text-label-sm">Prescription Console</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant dark:text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 dark:hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-label-sm text-label-sm">AI Pipeline</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant dark:text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 dark:hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-label-sm text-label-sm">Metabolic Pathways</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant dark:text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 dark:hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-label-sm text-label-sm">Clinical Reports</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant dark:text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 dark:hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">assignment_ind</span>
+<span class="font-label-sm text-label-sm">Adherence Triage</span>
+</a>
+</div>
+<!-- Footer Links -->
+<div class="mt-auto pt-4 px-2 border-t border-outline-variant/30">
+<a class="flex items-center gap-3 text-on-surface-variant dark:text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 dark:hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-sm text-label-sm">Support</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant dark:text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 dark:hover:bg-primary/10 hover:text-primary transition-all duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-sm text-label-sm">Archive</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<div class="flex-1 flex flex-col md:ml-[240px] h-full overflow-hidden">
+<!-- TopAppBar (Visible on all, adapts for mobile) -->
+<header class="bg-surface/80 dark:bg-surface-dim/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm shadow-primary/5 docked full-width top-0 flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop h-16 z-40 shrink-0">
+<!-- Mobile Brand (Hidden on Desktop since Sidebar has it) -->
+<div class="md:hidden flex items-center gap-2">
+<span class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed">GenomicLens</span>
+</div>
+<!-- Empty spacer on desktop to push items right if search is absent, or house search -->
+<div class="hidden md:block flex-1">
+<!-- Contextual Page Title on Desktop -->
+<h2 class="font-headline-md text-headline-md text-primary">Prescription Console</h2>
+</div>
+<!-- Right Actions -->
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:bg-surface-variant/50 hover:text-primary transition-all duration-200 p-2 rounded-full active:scale-[0.98]">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-variant/50 hover:text-primary transition-all duration-200 p-2 rounded-full active:scale-[0.98]">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-variant/50 hover:text-primary transition-all duration-200 p-2 rounded-full active:scale-[0.98]">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<div class="h-8 w-px bg-outline-variant/30 mx-1"></div>
+<img alt="Clinician Profile" class="w-8 h-8 rounded-full border border-outline-variant/50 cursor-pointer hover:ring-2 ring-primary/30 transition-all" data-alt="A professional headshot of a clinician, wearing subtle medical attire like a white coat or neat scrubs. The portrait is brightly lit with a clean, modern aesthetic, emphasizing trust and competence. The background is a soft, neutral studio backdrop to keep focus on the individual." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDr7oxfGNG5nulS2gd1xRQc42eSjRJ8wDBh5PiKsL-a30NbzM0mZwEaPNcWzj3ufEchbtpMisvRr84bS9pjT-K2fHNURHfRiSwGql_4izvvfJNMHuUqVkYMEZXQgKClrdYq7YyjkdyvRaApuVYs0CMW5ngJgokZLG3VnvdgvqXxs2voRiYV8gDDnYiy7rJYGuWiYfKr2F977WcuPsS5oQG05oqBLEFtpEXr2GJej26n0NxW0zIyGKdfuPsv-GPURCw5RX7q6eM55MY">
+</div>
+</header>
+<!-- Scrollable Page Content -->
+<main class="flex-1 overflow-y-auto p-margin-mobile md:p-margin-desktop bg-[#FAFAF8]">
+<div class="max-w-container-max mx-auto space-y-6">
+<!-- Top Controls: Patient & Search -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Patient Selector -->
+<div class="lg:col-span-4 glass-card rounded-xl p-5 flex flex-col justify-center">
+<label class="font-label-sm text-label-sm text-on-surface-variant mb-2 block uppercase tracking-wider">Active Patient</label>
+<div class="relative">
+<select class="input-clinical w-full bg-surface-container-lowest font-body-md text-body-md text-on-surface rounded-lg py-3 px-4 appearance-none pr-10 cursor-pointer">
+<option>Doe, Jane (ID: 948-22A)</option>
+<option>Smith, Robert (ID: 112-8B)</option>
+<option>Chen, Wei (ID: 443-9C)</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
+</div>
+</div>
+<!-- Medication Search -->
+<div class="lg:col-span-8 glass-card rounded-xl p-5 flex flex-col justify-center">
+<label class="font-label-sm text-label-sm text-on-surface-variant mb-2 block uppercase tracking-wider">Therapy Evaluation</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-4 text-primary">search</span>
+<input class="input-clinical w-full bg-surface-container-lowest font-data-mono text-data-mono text-on-surface rounded-lg py-3 pl-12 pr-4" placeholder="Search medications, classes, or generic names..." type="text">
+<button class="absolute right-2 bg-primary-container text-on-primary-container px-3 py-1.5 rounded-md font-label-sm text-label-sm hover:bg-primary hover:text-on-primary transition-colors">
+                                Analyze
+                            </button>
+</div>
+</div>
+</div>
+<!-- Main Content Area: Bento Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Left Column: Phenotype Summary -->
+<div class="lg:col-span-4 space-y-6">
+<div class="glass-card rounded-xl overflow-hidden flex flex-col h-full">
+<div class="bg-surface-container-low border-b border-outline-variant/30 px-5 py-4 flex justify-between items-center">
+<h3 class="font-headline-md text-headline-md text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">biotech</span>
+                                    Phenotype Summary
+                                </h3>
+</div>
+<div class="p-5 flex-1 space-y-4 bg-surface-container-lowest">
+<!-- Gene Row 1 -->
+<div class="flex items-center justify-between p-3 rounded-lg border border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors">
+<div class="flex flex-col">
+<span class="font-data-mono text-data-mono font-bold text-on-surface">CYP2D6</span>
+<span class="font-data-mono text-[12px] text-on-surface-variant">*1/*1</span>
+</div>
+<span class="pill-normal font-label-sm text-label-sm px-3 py-1 rounded-full uppercase tracking-wider border border-primary/20">Normal</span>
+</div>
+<!-- Gene Row 2 -->
+<div class="flex items-center justify-between p-3 rounded-lg border border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors">
+<div class="flex flex-col">
+<span class="font-data-mono text-data-mono font-bold text-on-surface">CYP2C19</span>
+<span class="font-data-mono text-[12px] text-on-surface-variant">*17/*17</span>
+</div>
+<span class="pill-ultra-rapid font-label-sm text-label-sm px-3 py-1 rounded-full uppercase tracking-wider">Ultra-Rapid</span>
+</div>
+<!-- Gene Row 3 -->
+<div class="flex items-center justify-between p-3 rounded-lg border border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors bg-error-container/10">
+<div class="flex flex-col">
+<span class="font-data-mono text-data-mono font-bold text-on-surface">TPMT</span>
+<span class="font-data-mono text-[12px] text-on-surface-variant">*3A/*3C</span>
+</div>
+<span class="pill-poor font-label-sm text-label-sm px-3 py-1 rounded-full uppercase tracking-wider">Poor</span>
+</div>
+<!-- Gene Row 4 -->
+<div class="flex items-center justify-between p-3 rounded-lg border border-outline-variant/20 hover:bg-surface-container-low/50 transition-colors">
+<div class="flex flex-col">
+<span class="font-data-mono text-data-mono font-bold text-on-surface">SLCO1B1</span>
+<span class="font-data-mono text-[12px] text-on-surface-variant">*1/*5</span>
+</div>
+<span class="pill-poor font-label-sm text-label-sm px-3 py-1 rounded-full uppercase tracking-wider bg-tertiary text-on-tertiary">Decreased</span>
+</div>
+</div>
+<div class="p-4 bg-surface-container-lowest border-t border-outline-variant/20">
+<button class="w-full text-primary font-label-sm text-label-sm flex items-center justify-center gap-1 hover:underline">
+                                    View Full Genomic Profile
+                                    <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Right Column: Contextual Canvas (Empty state for search) -->
+<div class="lg:col-span-8">
+<div class="glass-card rounded-xl h-full min-h-[400px] flex flex-col items-center justify-center p-8 text-center bg-surface-container-lowest/50 relative overflow-hidden">
+<!-- Background subtle pattern/icon -->
+<span class="material-symbols-outlined text-[120px] text-primary/5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">science</span>
+<div class="relative z-10 max-w-md">
+<div class="w-16 h-16 rounded-full bg-primary-container/20 flex items-center justify-center mx-auto mb-4">
+<span class="material-symbols-outlined text-[32px] text-primary">prescriptions</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-2">Awaiting Medication Selection</h3>
+<p class="font-body-serif text-body-serif text-on-surface-variant mb-6">Search for a medication above to analyze pharmacokinetic pathways against Jane Doe's genetic profile.</p>
+<div class="flex flex-wrap gap-2 justify-center">
+<span class="px-3 py-1 rounded-md bg-surface-variant/50 text-on-surface-variant font-label-sm text-label-sm cursor-pointer hover:bg-surface-variant transition-colors border border-outline-variant/30">Clopidogrel</span>
+<span class="px-3 py-1 rounded-md bg-surface-variant/50 text-on-surface-variant font-label-sm text-label-sm cursor-pointer hover:bg-surface-variant transition-colors border border-outline-variant/30">Codeine</span>
+<span class="px-3 py-1 rounded-md bg-surface-variant/50 text-on-surface-variant font-label-sm text-label-sm cursor-pointer hover:bg-surface-variant transition-colors border border-outline-variant/30">Simvastatin</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

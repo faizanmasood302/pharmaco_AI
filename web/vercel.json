@@ -1,0 +1,7 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "env": {
+    "AGENT_SERVER_URL": "@agent_server_url"
+  }
+}

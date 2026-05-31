@@ -1,0 +1,209 @@
+{
+  "main": {
+    "id": "a45c57cd2cdd0fb2",
+    "type": "split",
+    "children": [
+      {
+        "id": "e09af51c95c10ed5",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "de54b99a232cc49f",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "patients/PGX-003.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "PGX-003"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "2602ebdc197722c3",
+    "type": "split",
+    "children": [
+      {
+        "id": "0574019e651e36a8",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0cf16fbca4cd2d23",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "37b834c62d93153d",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "f829e7da3f8e53ee",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "0071e3647873208b",
+    "type": "split",
+    "children": [
+      {
+        "id": "70a651c70b372d8a",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0f7839f0c4075bb7",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "INDEX.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for INDEX"
+            }
+          },
+          {
+            "id": "1864f7399fb4499c",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "INDEX.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from INDEX"
+            }
+          },
+          {
+            "id": "579db30ca9a51179",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "371acd4b715a0582",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "01513872bee5647e",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "INDEX.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of INDEX"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "de54b99a232cc49f",
+  "lastOpenFiles": [
+    "patients/tmp_zo1xhh6.tmp",
+    "patients/tmplom0hfcp.tmp",
+    "patients/tmpx431_z2a.tmp",
+    "patients/PGX-002.md",
+    "patients/PGX-003.md",
+    "patients/PGX-001.md",
+    "patients/tmpcm3_pfn6.tmp",
+    "patients/tmpku7z8ygp.tmp",
+    "patients/tmpwi60o24x.tmp",
+    "patients/tmppx0pi7az.tmp",
+    "patients/tmpu70xte82.tmp",
+    "patients/tmpovnir2ol.tmp",
+    "patients/tmp1tnby5qs.tmp",
+    "patients/tmptvsd8j1x.tmp",
+    "patients/NEW-PATIENT.md",
+    "clinical_logic/Metabolic_Conversion_Standards.md",
+    "clinical_logic/Opioid_Prescribing_Protocol.md",
+    "clinical_logic/Override_and_Audit_Policy.md",
+    "Untitled.canvas",
+    "INDEX.md"
+  ]
+}
