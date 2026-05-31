@@ -24,27 +24,17 @@ export const metadata: Metadata = {
     "AI agent harness for n-of-1 prescribing - intercept unsafe opioid prodrugs before dispensing",
 };
 
-function AuthWrapper({ children }: { children: React.ReactNode }) {
-  const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  if (clerkKey) {
-    return <ClerkProvider>{children}</ClerkProvider>;
-  }
-  return <>{children}</>;
-}
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <AuthWrapper>
-      <html
-        lang="en"
-        className={`${dmSans.variable} ${sourceSerif.variable} ${jetbrainsMono.variable} h-full antialiased`}
-      >
-        <body className="min-h-full flex flex-col">{children}</body>
-      </html>
-    </AuthWrapper>
+    <html
+      lang="en"
+      className={`${dmSans.variable} ${sourceSerif.variable} ${jetbrainsMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col">{children}</body>
+    </html>
   );
 }

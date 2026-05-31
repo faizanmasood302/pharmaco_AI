@@ -206,7 +206,8 @@ async def ingest_fhir(
             "phenotype": upserted["cyp_profiles"][0]["phenotype"] if upserted["cyp_profiles"] else "Unknown",
         }
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"FHIR ingestion failed: {e}")
+        raise InternalServerError(f"FHIR ingestion failed: {str(e)}")
 
 
 class LoginRequest(BaseModel):
@@ -310,6 +311,13 @@ async def submit_check_in(
         return result
     except Exception as e:
         logger.error(f"Check-in submission failed: {e}")
+        raise InternalServerError(f"Check-in submission failed: {str(e)}")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+: {e}")
         raise InternalServerError(f"Check-in submission failed: {str(e)}")
 
 

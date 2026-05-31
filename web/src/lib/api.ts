@@ -1,3 +1,5 @@
+import { authClient } from "./auth-client";
+
 const AGENT_SERVER =
   process.env.AGENT_SERVER_URL ?? "http://127.0.0.1:8000";
 
@@ -18,35 +20,23 @@ async function fetchWithTimeout(url: string, options: RequestInit & { timeout?: 
   }
 }
 
-let cachedToken: string | null = null;
-let tokenExpiresAt: number = 0;
-
 export async function getAuthToken(): Promise<string | null> {
-  if (cachedToken && Date.now() < tokenExpiresAt - 60000) {
-    return cachedToken;
-  }
-
-  try {
-    const res = await fetch(`${AGENT_SERVER}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        email: process.env.DEMO_EMAIL || "doctor@clinic.com", 
-        password: process.env.DEMO_PASSWORD || "testpass" 
-      }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    cachedToken = data.access_token;
-    tokenExpiresAt = Date.now() + 3600 * 1000;
-    return cachedToken;
-  } catch (e) {
-    console.error("Auth error:", e);
-    return null;
+  // BetterAuth stores session token in 'better-auth.session_token' cookie
+  if (typeof window !== "undefined") {
+    // Client-side: Read from cookie
+    const cookies = document.cookie.split(";");
+    const sessionCookie = cookies.find(c => c.trim().startsWith("better-auth.session_token="));
+    return sessionCookie ? sessionCookie.split("=")[1] : null;
+  } else {
+    // Server-side: Read from Next.js headers
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    return cookieStore.get("better-auth.session_token")?.value || null;
   }
 }
 
 async function handleApiError(response: Response) {
+...
   try {
     const data = await response.json();
     return data.error?.message || data.detail || `Request failed with status ${response.status}`;

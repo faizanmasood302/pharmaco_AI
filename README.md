@@ -23,10 +23,11 @@ We intercept the prescription **before dispensing**: ingest n-of-1 genetic data 
 | Layer | Stack | Role |
 |-------|--------|------|
 | Web | Next.js 16, R3F, GSAP | Clinician UI, visual informatics alert |
+| Auth | BetterAuth | Self-hosted practitioner login/signup |
 | Agent server | FastAPI, Python 3.12 | Multi-agent PGx orchestration |
 | Rules engine | Deterministic CPIC-aligned CYP2D6 rules | Reliable demo + production core |
 | Optional LLM | Groq | Clinical narrative enrichment |
-| Data | In-memory seed patients (+ optional Supabase) | Synthetic FHIR-ready profiles |
+| Data | Supabase (PostgreSQL) | Synthetic FHIR-ready profiles |
 
 **Agent pipeline:** Research → Analyst → Critic → Orchestrator (+ Adherence agent post-approval)
 
@@ -38,6 +39,7 @@ We intercept the prescription **before dispensing**: ingest n-of-1 genetic data 
 
 - Python 3.12+ with [uv](https://github.com/astral-sh/uv)
 - Node.js 20+
+- Supabase project (PostgreSQL)
 
 ### Backend
 
@@ -53,7 +55,7 @@ uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```bash
 cd web
 npm install
-# optional: .env.local with AGENT_SERVER_URL=http://127.0.0.1:8000
+# required: .env with BETTER_AUTH_SECRET and DATABASE_URL
 npm run dev
 ```
 
@@ -62,9 +64,10 @@ npm run dev
 | Variable | Where | Required |
 |----------|--------|----------|
 | `GROQ_API_KEY` | agent-server | No (deterministic rules work without it) |
-| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | agent-server | No (uses seed patients) |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | agent-server | Yes (for session verification) |
 | `AGENT_SERVER_URL` | web | No (defaults to `http://127.0.0.1:8000`) |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | web | No (auth skipped if unset) |
+| `DATABASE_URL` | web | Yes (Direct Postgres connection) |
+| `BETTER_AUTH_SECRET` | web | Yes (32+ character random string) |
 
 ## Go-to-market wedge
 
