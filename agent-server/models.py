@@ -29,6 +29,16 @@ class OverrideRequirement(BaseModel):
     required_fields: list[str] = Field(default_factory=list)
 
 
+class HumanGate(BaseModel):
+    required: bool
+    status: str = "pending"
+    reason: str
+    review_notes: str | None = None
+    reviewed_by: str | None = None
+    reviewed_at: str | None = None
+    required_fields: list[str] = Field(default_factory=list)
+
+
 class CypProfileOut(BaseModel):
     gene: str
     diplotype: str
@@ -95,7 +105,43 @@ class PrescriptionRequest(BaseModel):
     medication: str = Field(..., description="Proposed medication name")
 
 
+class ReasoningOutput(BaseModel):
+    flagged: bool
+    risk_level: str
+    risk_summary: str
+    recommended_alternative: str | None = None
+    alternative_rationale: str
+    cpic_note: str
+    cpic_level: str = "informative"
+    decision_confidence: float = Field(default=0.72, ge=0, le=1)
+    next_best_actions: list[str] = Field(default_factory=list)
+    reasoning_summary: str = ""
+    human_gate_required: bool = True
+
+
+class CriticOutput(BaseModel):
+    agent_verdict: str
+    critique_summary: str
+    audit_trail: list[AuditEvent] = Field(default_factory=list)
+    override_requirement: OverrideRequirement = Field(
+        default_factory=lambda: OverrideRequirement(
+            required=True,
+            reason="Clinician review required before release.",
+            required_fields=[
+                "clinician_id",
+                "risk_benefit_rationale",
+                "patient_counseling_attestation",
+                "monitoring_plan",
+            ],
+        )
+    )
+    next_best_actions: list[str] = Field(default_factory=list)
+    challenge_confidence: float = Field(default=0.8, ge=0, le=1)
+    human_gate_required: bool = True
+
+
 class EvaluationResponse(BaseModel):
+    evaluation_id: str | None = None
     status: str
     patient_id: str
     medication: str
@@ -116,11 +162,21 @@ class EvaluationResponse(BaseModel):
     safety_notes: list[str] = Field(default_factory=list)
     agent_verdict: str = "review"
     audit_trail: list[AuditEvent] = Field(default_factory=list)
-    logic_tree: dict[str, Any] = Field(default_factory=dict, description="Structured logic graph for UI visualization")
+    logic_tree: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Structured logic graph for UI visualization",
+    )
     override_requirement: OverrideRequirement = Field(
         default_factory=lambda: OverrideRequirement(
             required=False,
             reason="No override requirement generated.",
+        )
+    )
+    human_gate: HumanGate = Field(
+        default_factory=lambda: HumanGate(
+            required=True,
+            status="pending",
+            reason="Clinician review required before release.",
         )
     )
     next_best_actions: list[str] = Field(default_factory=list)
@@ -140,4 +196,88 @@ class CheckInSubmitRequest(BaseModel):
     side_effect_reported: bool = False
 
 
+class ReviewDecisionRequest(BaseModel):
+    decision: str = Field(..., description="Clinician decision: approved or rejected")
+    reviewer: str | None = None
+    rationale: str | None = None
+
+
 EvaluationResponse.model_rebuild()
+
+
+class TherapyEvidenceBundle(BaseModel):
+    sources: list[str] = Field(default_factory=list)
+    target_rationale: str
+    known_risks: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+    evidence_quality: str = "low"
+    source_snippets: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class TherapyCandidate(BaseModel):
+    candidate_id: str
+    iteration: int
+    modality: str = "simulated_mrna"
+    sequence: str
+    design_constraints: list[str] = Field(default_factory=list)
+    rationale: str
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+class TherapyValidationCheck(BaseModel):
+    name: str
+    passed: bool
+    score: float = Field(default=0, ge=0, le=1)
+    detail: str
+    severity: str = "info"
+
+
+class TherapyValidationResult(BaseModel):
+    passed: bool
+    overall_risk_score: float = Field(default=1, ge=0, le=1)
+    checks: list[TherapyValidationCheck] = Field(default_factory=list)
+    blocked_reasons: list[str] = Field(default_factory=list)
+    revision_hints: list[str] = Field(default_factory=list)
+    validator_version: str | None = None
+
+class TherapyGenerationRequest(BaseModel):
+    patient_id: str
+    target_disease: str = Field(
+        ...,
+        description="Target condition or protein constraint",
+    )
+    max_iterations: int = Field(default=3, ge=1, le=5)
+
+class TherapyGenerationResponse(BaseModel):
+    status: str
+    patient_id: str
+    target_disease: str
+    mrna_sequence: str | None = None
+    toxicity_score: float | None = None
+    iterations: int
+    agent_steps: list[AgentStep]
+    clinical_narrative: str
+    therapy_request_id: str | None = None
+    candidate_id: str | None = None
+    final_candidate: TherapyCandidate | None = None
+    candidate_history: list[TherapyCandidate] = Field(default_factory=list)
+    validation_result: TherapyValidationResult | None = None
+    evidence_bundle: TherapyEvidenceBundle | None = None
+    evidence_sources: list[str] = Field(default_factory=list)
+    safety_notes: list[str] = Field(default_factory=list)
+    audit_trail: list[AuditEvent] = Field(default_factory=list)
+    logic_tree: dict[str, Any] = Field(default_factory=dict)
+    human_gate: HumanGate = Field(
+        default_factory=lambda: HumanGate(
+            required=True,
+            status="pending",
+            reason="Researcher or clinician review required before downstream use.",
+            required_fields=[
+                "reviewer_id",
+                "research_rationale",
+                "evidence_review_attestation",
+                "safety_risk_acknowledgement",
+            ],
+        )
+    )
+

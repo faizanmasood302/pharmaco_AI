@@ -14,9 +14,26 @@ export interface AuditEvent {
   requires_human_review: boolean;
 }
 
+export interface LogicTreeNodeData {
+  node: string;
+  detail?: string;
+  flag?: boolean;
+  children?: LogicTreeNodeData[];
+}
+
 export interface OverrideRequirement {
   required: boolean;
   reason: string;
+  required_fields: string[];
+}
+
+export interface HumanGate {
+  required: boolean;
+  status: string;
+  reason: string;
+  review_notes?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
   required_fields: string[];
 }
 
@@ -38,6 +55,7 @@ export interface Patient {
 }
 
 export interface EvaluationResult {
+  evaluation_id?: string | null;
   status: string;
   patient_id: string;
   medication: string;
@@ -58,8 +76,9 @@ export interface EvaluationResult {
   safety_notes: string[];
   agent_verdict: string;
   audit_trail: AuditEvent[];
-  logic_tree?: any;
+  logic_tree?: LogicTreeNodeData | null;
   override_requirement: OverrideRequirement;
+  human_gate: HumanGate;
   next_best_actions: string[];
   created_at?: string;
 }
@@ -105,4 +124,66 @@ export interface Medication {
   name: string;
   enzyme: string;
   is_prodrug: boolean;
+}
+
+export interface TherapyEvidenceBundle {
+  sources: string[];
+  target_rationale: string;
+  known_risks: string[];
+  open_questions: string[];
+  evidence_quality: string;
+  source_snippets: Array<{
+    source: string;
+    chunk_id: string;
+    score: number;
+    snippet: string;
+  }>;
+}
+
+export interface TherapyCandidate {
+  candidate_id: string;
+  iteration: number;
+  modality: string;
+  sequence: string;
+  design_constraints: string[];
+  rationale: string;
+  evidence_refs: string[];
+}
+
+export interface TherapyValidationCheck {
+  name: string;
+  passed: boolean;
+  score: number;
+  detail: string;
+  severity: string;
+}
+
+export interface TherapyValidationResult {
+  passed: boolean;
+  overall_risk_score: number;
+  checks: TherapyValidationCheck[];
+  blocked_reasons: string[];
+  revision_hints: string[];
+}
+
+export interface TherapyGenerationResult {
+  status: string;
+  patient_id: string;
+  target_disease: string;
+  mrna_sequence: string | null;
+  toxicity_score: number | null;
+  iterations: number;
+  agent_steps: AgentStep[];
+  clinical_narrative: string;
+  therapy_request_id?: string | null;
+  candidate_id?: string | null;
+  final_candidate: TherapyCandidate | null;
+  candidate_history: TherapyCandidate[];
+  validation_result: TherapyValidationResult | null;
+  evidence_bundle: TherapyEvidenceBundle | null;
+  evidence_sources: string[];
+  safety_notes: string[];
+  audit_trail: AuditEvent[];
+  logic_tree?: LogicTreeNodeData | null;
+  human_gate: HumanGate;
 }

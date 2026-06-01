@@ -95,8 +95,8 @@ def _write_to_vault(patient_id: str, med: str, summary: str, history: str):
     Fixed Bug #12 (Silent Swallowing) and Bug #15 (Race Condition).
     """
     # Ensure we find the vault folder relative to the script location
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    vault_dir = os.path.join(base_dir, "vault", "patients")
+    base_dir = os.environ.get("VAULT_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "vault"))
+    vault_dir = os.path.join(base_dir, "patients")
     file_path = os.path.join(vault_dir, f"{patient_id}.md")
     
     timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")

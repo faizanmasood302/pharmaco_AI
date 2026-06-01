@@ -22,6 +22,16 @@ export const OverrideRequirementSchema = z.object({
   required_fields: z.array(z.string()),
 });
 
+export const HumanGateSchema = z.object({
+  required: z.boolean(),
+  status: z.string(),
+  reason: z.string(),
+  review_notes: z.string().nullable().optional(),
+  reviewed_by: z.string().nullable().optional(),
+  reviewed_at: z.string().nullable().optional(),
+  required_fields: z.array(z.string()),
+});
+
 export const CypProfileSchema = z.object({
   gene: z.string(),
   diplotype: z.string(),
@@ -82,6 +92,7 @@ export const EvaluationHistoryItemSchema = z.object({
 });
 
 export const EvaluationResultSchema = z.object({
+  evaluation_id: z.string().nullable().optional(),
   status: z.string(),
   patient_id: z.string(),
   medication: z.string(),
@@ -104,7 +115,72 @@ export const EvaluationResultSchema = z.object({
   audit_trail: z.array(AuditEventSchema),
   logic_tree: z.any().optional(),
   override_requirement: OverrideRequirementSchema,
+  human_gate: HumanGateSchema,
   next_best_actions: z.array(z.string()),
 });
 
 export type ValidatedEvaluationResult = z.infer<typeof EvaluationResultSchema>;
+
+export const TherapyEvidenceBundleSchema = z.object({
+  sources: z.array(z.string()),
+  target_rationale: z.string(),
+  known_risks: z.array(z.string()),
+  open_questions: z.array(z.string()),
+  evidence_quality: z.string(),
+  source_snippets: z.array(z.object({
+    source: z.string(),
+    chunk_id: z.string(),
+    score: z.number(),
+    snippet: z.string(),
+  })),
+});
+
+export const TherapyCandidateSchema = z.object({
+  candidate_id: z.string(),
+  iteration: z.number(),
+  modality: z.string(),
+  sequence: z.string(),
+  design_constraints: z.array(z.string()),
+  rationale: z.string(),
+  evidence_refs: z.array(z.string()),
+});
+
+export const TherapyValidationCheckSchema = z.object({
+  name: z.string(),
+  passed: z.boolean(),
+  score: z.number(),
+  detail: z.string(),
+  severity: z.string(),
+});
+
+export const TherapyValidationResultSchema = z.object({
+  passed: z.boolean(),
+  overall_risk_score: z.number(),
+  checks: z.array(TherapyValidationCheckSchema),
+  blocked_reasons: z.array(z.string()),
+  revision_hints: z.array(z.string()),
+});
+
+export const TherapyGenerationResultSchema = z.object({
+  status: z.string(),
+  patient_id: z.string(),
+  target_disease: z.string(),
+  mrna_sequence: z.string().nullable(),
+  toxicity_score: z.number().nullable(),
+  iterations: z.number(),
+  agent_steps: z.array(AgentStepSchema),
+  clinical_narrative: z.string(),
+  therapy_request_id: z.string().nullable().optional(),
+  candidate_id: z.string().nullable().optional(),
+  final_candidate: TherapyCandidateSchema.nullable(),
+  candidate_history: z.array(TherapyCandidateSchema),
+  validation_result: TherapyValidationResultSchema.nullable(),
+  evidence_bundle: TherapyEvidenceBundleSchema.nullable(),
+  evidence_sources: z.array(z.string()),
+  safety_notes: z.array(z.string()),
+  audit_trail: z.array(AuditEventSchema),
+  logic_tree: z.any().optional(),
+  human_gate: HumanGateSchema,
+});
+
+export type ValidatedTherapyGenerationResult = z.infer<typeof TherapyGenerationResultSchema>;

@@ -21,22 +21,19 @@ async function fetchWithTimeout(url: string, options: RequestInit & { timeout?: 
 }
 
 export async function getAuthToken(): Promise<string | null> {
-  // BetterAuth stores session token in 'better-auth.session_token' cookie
   if (typeof window !== "undefined") {
-    // Client-side: Read from cookie
-    const cookies = document.cookie.split(";");
-    const sessionCookie = cookies.find(c => c.trim().startsWith("better-auth.session_token="));
-    return sessionCookie ? sessionCookie.split("=")[1] : null;
+    // Client-side: use authClient (document.cookie can't read HttpOnly cookies)
+    const { data } = await authClient.getSession();
+    return data?.session?.token ?? null;
   } else {
-    // Server-side: Read from Next.js headers
+    // Server-side: Next.js cookies() can read HttpOnly cookies
     const { cookies } = await import("next/headers");
     const cookieStore = await cookies();
-    return cookieStore.get("better-auth.session_token")?.value || null;
+    return cookieStore.get("better-auth.session_token")?.value ?? null;
   }
 }
 
 async function handleApiError(response: Response) {
-...
   try {
     const data = await response.json();
     return data.error?.message || data.detail || `Request failed with status ${response.status}`;
@@ -45,14 +42,17 @@ async function handleApiError(response: Response) {
   }
 }
 
-export async function proxyGet(path: string) {
-  const token = await getAuthToken();
+export async function proxyGet(path: string, explicitToken?: string) {
+  const token = explicitToken ?? await getAuthToken();
   const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetchWithTimeout(`${AGENT_SERVER}${path}`, { 
     headers,
     cache: "no-store" 
+  }).catch(err => {
+    console.error(`Fetch error for ${path}:`, err);
+    throw new Error(`Agent Server unreachable at ${AGENT_SERVER}${path}: ${err.message}`);
   });
   
   if (!res.ok) {
@@ -64,8 +64,8 @@ export async function proxyGet(path: string) {
   return text ? JSON.parse(text) : {};
 }
 
-export async function proxyPost(path: string, body: unknown) {
-  const token = await getAuthToken();
+export async function proxyPost(path: string, body: unknown, explicitToken?: string) {
+  const token = explicitToken ?? await getAuthToken();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 

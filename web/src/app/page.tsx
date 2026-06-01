@@ -1,20 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import EvaluationPanel from "@/components/EvaluationPanel";
 import AdherencePanel from "@/components/AdherencePanel";
 import PathwayVisualizer from "@/components/PathwayVisualizer";
 import EvaluationHistory from "@/components/EvaluationHistory";
+import TherapySimulationPanel from "@/components/TherapySimulationPanel";
 import Icon from "@/components/Icon";
 import MetabolicScene from "@/components/MetabolicScene";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import type { EvaluationResult, PatientListItem, Medication } from "@/lib/types";
 import { EvaluationResultSchema } from "@/lib/schema";
+import { authClient } from "@/lib/auth-client";
+
+function getErrorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
+
+function normalizeRiskLevel(level?: string): "optimal" | "elevated" | "critical" {
+  const risk = (level ?? "").toLowerCase();
+  if (risk === "critical") return "critical";
+  if (risk === "high" || risk === "moderate" || risk === "elevated") return "elevated";
+  return "optimal";
+}
 
 export default function Home() {
+  const router = useRouter();
   const [patients, setPatients] = useState<PatientListItem[]>([]);
-  const [patientsLoading, setPatientsLoading] = useState(true); // CHANGE 3: track patient loading state
+  const [patientsLoading, setPatientsLoading] = useState(true);
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [patientId, setPatientId] = useState("PGX-001");
   const [medication, setMedication] = useState("Codeine");
   const [allMedications, setAllMedications] = useState<Medication[]>([
@@ -34,9 +50,68 @@ export default function Home() {
   const [clinicalNoteDate, setClinicalNoteDate] = useState<string | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [patientReports, setPatientReports] = useState<any[]>([]);
+  const [reportsLoading, setPatientReportsLoading] = useState(false);
+
+  // CHANGE: Fetch reports when patient changes or tab switches to REPORTS
+  useEffect(() => {
+    if (isAuthenticating || !patientId) return;
+
+    async function fetchReports() {
+      setPatientReportsLoading(true);
+      try {
+        const res = await fetch(`/api/patients/${patientId}/reports`);
+        const data = await res.json();
+        if (res.ok) {
+          setPatientReports(data.reports || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch reports:", err);
+      } finally {
+        setPatientReportsLoading(false);
+      }
+    }
+
+    fetchReports();
+  }, [patientId, isAuthenticating, historyKey]);
+
+  // Authentication guard...
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkAuthentication = async () => {
+      try {
+        const session = await authClient.getSession();
+        if (cancelled) return;
+
+        if (!session || !session.data) {
+          // Not authenticated, redirect to login
+          router.push("/login");
+          return;
+        }
+
+        // Authenticated, proceed with data fetching
+        setIsAuthenticating(false);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Auth check failed:", err);
+        // On error, redirect to login for security
+        router.push("/login");
+      }
+    };
+
+    checkAuthentication();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;
+
+    // Only fetch data after auth check is complete and user is authenticated
+    if (isAuthenticating) return;
 
     // Fetch patients
     fetch("/api/patients")
@@ -61,7 +136,7 @@ export default function Home() {
         ]);
       })
       .finally(() => {
-        if (!cancelled) setPatientsLoading(false); // CHANGE 3: mark loading done
+        if (!cancelled) setPatientsLoading(false);
       });
 
     // Fetch medications for autocomplete
@@ -83,7 +158,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAuthenticating]);
 
   const filteredMedications = allMedications.filter(m => {
     const search = medication.toLowerCase().trim();
@@ -146,11 +221,10 @@ export default function Home() {
       const validatedData = EvaluationResultSchema.parse(data);
       setResult(validatedData as EvaluationResult);
       setHistoryKey((k) => k + 1);
-      console.log("Evaluation complete. Result status:", validatedData.status);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Evaluation Error:", err);
       // Differentiate between Zod schema errors and network errors
-      if (err.name === "ZodError") {
+      if (err instanceof Error && err.name === "ZodError") {
         setError("Invalid data received from the clinical agent server.");
       } else {
         setError("Network error. Is the agent server running?");
@@ -160,9 +234,64 @@ export default function Home() {
     }
   }
 
+  async function handleReviewDecision(decision: "approved" | "rejected", rationale: string) {
+    const id = result?.evaluation_id;
+    
+    if (!id) {
+      setError("Critical Error: Evaluation session expired or ID missing. Please re-run the evaluation.");
+      return false;
+    }
+
+    try {
+      const res = await fetch(`/api/evaluations/${id}/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decision,
+          rationale: rationale || null,
+        }),
+      });
+      
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? data.detail ?? "Review update failed");
+        return false;
+      }
+
+      // Backend returns { evaluation: result_json } or similar
+      const updatedResult = data.evaluation ?? data;
+      const validatedData = EvaluationResultSchema.parse(updatedResult);
+      
+      setResult(validatedData as EvaluationResult);
+      setHistoryKey((k) => k + 1);
+      setError(null);
+      return true;
+    } catch (err: unknown) {
+      console.error("Review decision error:", err);
+      setError(getErrorMessage(err, "Unable to save review decision."));
+      return false;
+    }
+  }
+
   const hasWarning =
     result?.flagged === true &&
     (result?.risk_level === "critical" || result?.risk_level === "high");
+  const humanGateStatus = result?.human_gate?.status;
+  const adherenceApproved = humanGateStatus === "approved";
+  const humanGateLabel = humanGateStatus ? humanGateStatus.replaceAll("_", " ") : "pending";
+
+  // Show loading screen while checking authentication
+  if (isAuthenticating) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Icon name="progress_activity" className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-on-surface-variant text-sm font-medium">Verifying credentials...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AppShell>
@@ -301,7 +430,7 @@ export default function Home() {
                 <ErrorBoundary fallbackMessage="Failed to render the 3D metabolic scene.">
                   <MetabolicScene
                     hasWarning={hasWarning}
-                    riskLevel={result?.risk_level as any}
+                    riskLevel={normalizeRiskLevel(result?.risk_level)}
                   />
                 </ErrorBoundary>
                 {loading ? (
@@ -323,6 +452,7 @@ export default function Home() {
                         setClinicalNote(note);
                         setClinicalNoteDate(new Date().toLocaleDateString());
                       }}
+                      onReviewDecision={handleReviewDecision}
                     />
                   </ErrorBoundary>
                 ) : (
@@ -346,33 +476,39 @@ export default function Home() {
                   <div className="flex items-center justify-between mb-10 border-b border-outline-variant/20 pb-6">
                     <div>
                       <h2 className="text-2xl font-bold text-on-surface">Agent Execution Stream</h2>
-                      <p className="text-sm text-on-surface-variant mt-1">Live orchestration of specialized clinical intelligence modules. Deterministic logic ensures safe evaluations.</p>
+                      <p className="text-sm text-on-surface-variant mt-1">Live orchestration of specialized clinical intelligence modules. Retrieval, reasoning, critique, and reporting are followed by an explicit clinician gate.</p>
                     </div>
                     {result && (
                       <div className="px-4 py-2 bg-primary/10 rounded-full border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-widest">
-                        Status: Execution Finalized
+                        Human gate: {humanGateLabel}
                       </div>
                     )}
                   </div>
 
                   {result ? (
                     <div className="space-y-0">
-                       {result.agent_steps.map((step, idx) => (
-                         <div key={idx} className="flex gap-8 relative group">
-                           <div className="flex flex-col items-center shrink-0">
+                      {result.agent_steps.map((step, idx) => {
+                        const displayStatus =
+                          step.agent === "HumanGate" ? humanGateStatus ?? step.status : step.status;
+
+                        return (
+                          <div key={idx} className="flex gap-8 relative group">
+                            <div className="flex flex-col items-center shrink-0">
                               <div className={`w-10 h-10 rounded-xl flex items-center justify-center z-10 transition-all group-hover:scale-110 ${
-                                step.status === 'complete' || step.status === 'approved' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' :
-                                step.status === 'blocked' ? 'bg-error text-on-error' : 'bg-background text-outline border border-outline/20'
+                                displayStatus === "complete" || displayStatus === "approved" ? "bg-primary text-on-primary shadow-lg shadow-primary/20" :
+                                displayStatus === "blocked" || displayStatus === "rejected" ? "bg-error text-on-error" : "bg-background text-outline border border-outline/20"
                               }`}>
                                 <Icon
                                   name={
-                                    step.agent === 'Research' ? 'search' :
-                                    step.agent === 'Memory' ? 'history' :
-                                    step.agent === 'Analyst' ? 'biotech' :
-                                    step.agent === 'Critic' ? 'verified_user' :
-                                    step.agent === 'Knowledge' ? 'menu_book' :
-                                    step.agent === 'Policy' ? 'gavel' :
-                                    step.agent === 'Challenge' ? 'report_problem' : 'analytics'
+                                    step.agent === "Retrieval" || step.agent === "Research" ? "search" :
+                                    step.agent === "Reasoning" || step.agent === "Analyst" ? "psychology" :
+                                    step.agent === "Critic" ? "verified_user" :
+                                    step.agent === "Knowledge" ? "menu_book" :
+                                    step.agent === "Policy" ? "gavel" :
+                                    step.agent === "Reporter" ? "description" :
+                                    step.agent === "HumanGate" ? "fact_check" :
+                                    step.agent === "Challenge" ? "report_problem" :
+                                    step.agent === "Orchestrator" ? "hub" : "analytics"
                                   }
                                   className="h-5 w-5"
                                 />
@@ -380,37 +516,40 @@ export default function Home() {
                               {idx < result.agent_steps.length - 1 && (
                                 <div className="w-0.5 flex-1 bg-outline-variant/30 my-2" />
                               )}
-                           </div>
-                           <div className="pb-12 pt-1 flex-1">
-                             <div className="flex items-center gap-3 mb-2">
-                                <h4 className="font-bold text-sm text-on-surface uppercase tracking-widest">{step.agent} Agent</h4>
+                            </div>
+                            <div className="pb-12 pt-1 flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h4 className="font-bold text-sm text-on-surface uppercase tracking-widest">
+                                  {step.agent === "HumanGate" ? "Human Gate" : step.agent} Agent
+                                </h4>
                                 <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                                  step.status === 'complete' || step.status === 'approved' ? 'bg-primary/10 text-primary' :
-                                  step.status === 'blocked' ? 'bg-error/10 text-error' : 'bg-background text-on-surface-variant'
+                                  displayStatus === "complete" || displayStatus === "approved" ? "bg-primary/10 text-primary" :
+                                  displayStatus === "blocked" || displayStatus === "rejected" ? "bg-error/10 text-error" : "bg-background text-on-surface-variant"
                                 }`}>
-                                  {step.status}
+                                  {displayStatus}
                                 </span>
-                             </div>
-                             <p className="text-sm text-on-surface-variant leading-relaxed bg-background/50 p-4 rounded-lg border border-outline-variant/10">
-                               {step.summary}
-                             </p>
-                             {step.duration_ms != null && (
-                               <div className="flex items-center gap-2 mt-3 text-[10px] font-mono text-on-surface-variant/40">
+                              </div>
+                              <p className="text-sm text-on-surface-variant leading-relaxed bg-background/50 p-4 rounded-lg border border-outline-variant/10">
+                                {step.summary}
+                              </p>
+                              {step.duration_ms != null && (
+                                <div className="flex items-center gap-2 mt-3 text-[10px] font-mono text-on-surface-variant/40">
                                   <Icon name="timer" className="h-3 w-3" />
                                   Latent Execution: {step.duration_ms}ms
                                   {typeof step.confidence === "number" && (
                                     <span>Confidence: {Math.round(step.confidence * 100)}%</span>
                                   )}
-                               </div>
-                             )}
-                             {step.evidence_refs && step.evidence_refs.length > 0 && (
-                               <div className="mt-2 text-[10px] font-mono text-on-surface-variant/50">
-                                 Evidence: {step.evidence_refs.join(", ")}
-                               </div>
-                             )}
-                           </div>
-                         </div>
-                       ))}
+                                </div>
+                              )}
+                              {step.evidence_refs && step.evidence_refs.length > 0 && (
+                                <div className="mt-2 text-[10px] font-mono text-on-surface-variant/50">
+                                  Evidence: {step.evidence_refs.join(", ")}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="py-20 text-center text-on-surface-variant">
@@ -445,49 +584,98 @@ export default function Home() {
           )}
 
           {activeTab === "REPORTS" && (
-            <div className="max-w-4xl mx-auto space-y-6">
-               <div className="glass-card rounded-xl p-10 min-h-[600px] flex flex-col">
-                  <div className="flex items-center justify-between mb-10 border-b border-outline-variant/20 pb-6 shrink-0">
-                    <div>
-                      <h2 className="text-2xl font-bold text-on-surface">Clinical PGx Documentation</h2>
-                      <p className="text-sm text-on-surface-variant mt-1">Formal structured reports for Electronic Health Record (EHR) integration.</p>
-                    </div>
-                    {clinicalNote && (
-                      <button className="bg-primary text-on-primary text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded shadow-sm hover:bg-primary/90 transition-all flex items-center gap-2">
-                        <Icon name="print" className="h-4 w-4" />
-                        Print Report
-                      </button>
-                    )}
-                  </div>
-
-                  {clinicalNote ? (
-                    <div className="flex-1 bg-surface-container-low/30 rounded-lg p-10 border border-primary/10 shadow-inner overflow-y-auto">
-                      <div className="bg-white shadow-xl max-w-2xl mx-auto p-12 border border-outline-variant/30 min-h-[800px]">
-                         <div className="border-b-2 border-primary/20 pb-8 mb-8 flex justify-between items-start">
-                            <div>
-                               <h3 className="text-xl font-bold text-primary uppercase tracking-tighter mb-1">GenomicLens Precision Report</h3>
-                               <p className="text-[10px] font-mono text-on-surface-variant">Serial: PGX-DOC-{result?.patient_id}-{result?.medication.toUpperCase()}</p>
-                            </div>
-                            <div className="text-right text-[10px] font-bold text-on-surface-variant uppercase">
-                               Date: {clinicalNoteDate}
-                            </div>
-                         </div>
-                         <pre className="text-sm font-serif text-on-surface leading-relaxed whitespace-pre-wrap">
-                            {clinicalNote}
-                         </pre>
-                         <div className="mt-20 pt-10 border-t border-outline-variant/20 flex justify-between items-end italic text-[10px] text-on-surface-variant/40">
-                            <div>Generated by AI Agent: Orchestrator v2.0</div>
-                            <div>Confidential Clinical Record</div>
-                         </div>
+            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+               <div className="lg:col-span-4 space-y-6">
+                 <div className="glass-card rounded-xl p-6">
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-primary mb-4">Report Archive</h3>
+                    {reportsLoading ? (
+                      <div className="py-10 text-center animate-pulse">
+                         <Icon name="progress_activity" className="h-6 w-6 animate-spin mx-auto text-outline/30" />
                       </div>
+                    ) : patientReports.length > 0 ? (
+                      <div className="space-y-2">
+                        {patientReports.map((report) => (
+                          <button
+                            key={report.id}
+                            onClick={() => {
+                              setClinicalNote(report.content);
+                              setClinicalNoteDate(new Date(report.created_at).toLocaleDateString());
+                            }}
+                            className={`w-full text-left p-3 rounded-lg border transition-all ${
+                              clinicalNote === report.content 
+                                ? "bg-primary/10 border-primary/30" 
+                                : "bg-surface-container-lowest border-outline-variant/20 hover:border-primary/20"
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <span className="text-xs font-bold text-on-surface">EHR Document</span>
+                              <span className="text-[9px] font-mono text-on-surface-variant/40">
+                                {new Date(report.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[10px] text-on-surface-variant truncate">
+                              ID: {report.id.slice(0, 8)}...
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-10 text-center text-on-surface-variant/50 italic text-xs">
+                        No saved clinical reports found for this patient.
+                      </div>
+                    )}
+                 </div>
+               </div>
+
+               <div className="lg:col-span-8">
+                 <div className="glass-card rounded-xl p-10 min-h-[600px] flex flex-col">
+                    <div className="flex items-center justify-between mb-10 border-b border-outline-variant/20 pb-6 shrink-0">
+                      <div>
+                        <h2 className="text-2xl font-bold text-on-surface">Clinical PGx Documentation</h2>
+                        <p className="text-sm text-on-surface-variant mt-1">Formal structured reports for Electronic Health Record (EHR) integration.</p>
+                      </div>
+                      {clinicalNote && (
+                        <button className="bg-primary text-on-primary text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded shadow-sm hover:bg-primary/90 transition-all flex items-center gap-2">
+                          <Icon name="print" className="h-4 w-4" />
+                          Print Report
+                        </button>
+                      )}
                     </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant opacity-40">
-                       <Icon name="description" className="mb-4 h-14 w-14" />
-                       <p className="font-bold">Document Not Finalized</p>
-                       <p className="mt-1 text-xs max-w-xs text-center">Generate an EHR note in the Prescription Console to view and finalize the structured report here.</p>
-                    </div>
-                  )}
+
+                    {clinicalNote ? (
+                      <div className="flex-1 bg-surface-container-low/30 rounded-lg p-10 border border-primary/10 shadow-inner overflow-y-auto">
+                        <div className="bg-white shadow-xl max-w-2xl mx-auto p-12 border border-outline-variant/30 min-h-[800px] relative">
+                           <div className="absolute top-4 right-4 print:hidden">
+                              <button onClick={() => setClinicalNote(null)} className="text-on-surface-variant/30 hover:text-primary transition-colors">
+                                <Icon name="close" className="h-5 w-5" />
+                              </button>
+                           </div>
+                           <div className="border-b-2 border-primary/20 pb-8 mb-8 flex justify-between items-start">
+                              <div>
+                                 <h3 className="text-xl font-bold text-primary uppercase tracking-tighter mb-1">GenomicLens Precision Report</h3>
+                                 <p className="text-[10px] font-mono text-on-surface-variant">Structured Agentic Output</p>
+                              </div>
+                              <div className="text-right text-[10px] font-bold text-on-surface-variant uppercase">
+                                 Date: {clinicalNoteDate}
+                              </div>
+                           </div>
+                           <pre className="text-sm font-serif text-on-surface leading-relaxed whitespace-pre-wrap">
+                              {clinicalNote}
+                           </pre>
+                           <div className="mt-20 pt-10 border-t border-outline-variant/20 flex justify-between items-end italic text-[10px] text-on-surface-variant/40">
+                              <div>Generated by AI Agent: Orchestrator v2.4</div>
+                              <div>Confidential Clinical Record</div>
+                           </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant opacity-40">
+                         <Icon name="description" className="mb-4 h-14 w-14" />
+                         <p className="font-bold">Document Not Finalized</p>
+                         <p className="mt-1 text-xs max-w-xs text-center">Generate an EHR note in the Prescription Console to view and finalize the structured report here.</p>
+                      </div>
+                    )}
+                 </div>
                </div>
             </div>
           )}
@@ -499,18 +687,35 @@ export default function Home() {
                   <p className="text-sm text-on-surface-variant mt-1">Active surveillance of patient outcomes and automated risk assessment.</p>
                </div>
 
-               {/* CHANGE 2: Fixed condition — show AdherencePanel when result is approved, not based on flagged */}
-               {result && result.status === "approved" ? (
+               {result && adherenceApproved ? (
                  <ErrorBoundary fallbackMessage="Failed to render the adherence triage panel.">
                    <AdherencePanel patientId={result.patient_id} medication={result.medication} />
                  </ErrorBoundary>
                ) : (
                  <div className="glass-card rounded-xl p-20 text-center text-on-surface-variant bg-surface/40">
                     <Icon name="assignment_ind" className="mx-auto mb-4 h-12 w-12 opacity-10" />
-                    <p className="font-bold text-on-surface">No Active Surveillance</p>
-                    <p className="mt-1 text-xs max-w-sm mx-auto">Adherence monitoring is dynamically enabled after a precision prescription is cleared and dispensed.</p>
+                    <p className="font-bold text-on-surface">
+                      {humanGateStatus === "rejected" ? "Clinician Rejected" : "Awaiting Clinician Approval"}
+                    </p>
+                    <p className="mt-1 text-xs max-w-sm mx-auto">
+                      {humanGateStatus === "rejected"
+                        ? "The prescription was not cleared, so adherence monitoring remains disabled."
+                        : "Adherence monitoring is dynamically enabled after a precision prescription passes human review and is dispensed."}
+                    </p>
                  </div>
                )}
+            </div>
+          )}
+
+          {activeTab === "RESEARCH" && (
+            <div className="max-w-7xl mx-auto space-y-6">
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-on-surface">N-of-1 Research Simulation</h2>
+                <p className="text-sm text-on-surface-variant mt-1">Source-grounded candidate design, deterministic validation, and human research review.</p>
+              </div>
+              <ErrorBoundary fallbackMessage="Failed to render the n-of-1 research simulation.">
+                <TherapySimulationPanel patientId={patientId} />
+              </ErrorBoundary>
             </div>
           )}
         </div>

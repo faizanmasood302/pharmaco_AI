@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
 import { DM_Sans, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 

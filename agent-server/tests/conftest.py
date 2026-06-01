@@ -7,9 +7,28 @@ os.environ["ENCRYPTION_KEY"] = "Vv_B7A-A_8yT8mZ9nN9T9mZ9nN9T9mZ9nN9T9mZ9nN8="
 import pytest
 from fastapi.testclient import TestClient
 
-from auth import create_token
+from auth import verify_token
 from main import app
 from pgx.patients import PatientRecord
+
+
+@pytest.fixture(autouse=True)
+def isolate_external_services(monkeypatch):
+    """Keep tests deterministic and offline even when Supabase env vars are set."""
+    import agents.agentic as agentic
+    import db.supabase as supabase
+
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setattr(agentic, "_groq", None)
+    monkeypatch.setattr(supabase, "_client", None)
+    monkeypatch.setattr(supabase, "_admin_client", None)
+    supabase._local_evaluations.clear()
+    supabase._local_plans.clear()
+    supabase._local_check_ins.clear()
+    supabase._local_therapy_requests.clear()
+    supabase._local_therapy_candidates.clear()
+    supabase._local_therapy_validation_results.clear()
+    supabase._local_therapy_audit_events.clear()
 
 
 @pytest.fixture
@@ -17,11 +36,14 @@ def test_client():
     """Returns a FastAPI TestClient."""
     return TestClient(app)
 
+
 @pytest.fixture
 def auth_header():
-    """Returns a valid JWT Bearer header for testing."""
-    token = create_token(user_id="tester@genomiclens.com")
-    return {"Authorization": f"Bearer {token}"}
+    """Returns an authenticated header while preserving real 401 tests."""
+    app.dependency_overrides[verify_token] = lambda: "tester@genomiclens.com"
+    yield {"Authorization": "Bearer test-token"}
+    app.dependency_overrides.pop(verify_token, None)
+
 
 @pytest.fixture
 def mock_ultra_rapid_patient() -> PatientRecord:

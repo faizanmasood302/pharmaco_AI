@@ -1,10 +1,17 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 import Icon from "./Icon";
 
-export type Tab = "PRESCRIPTION" | "PIPELINE" | "PATHWAY" | "REPORTS" | "TRIAGE";
+export type Tab =
+  | "PRESCRIPTION"
+  | "PIPELINE"
+  | "PATHWAY"
+  | "REPORTS"
+  | "TRIAGE"
+  | "RESEARCH";
 
 interface AppShellProps {
   children: (activeTab: Tab) => React.ReactNode;
@@ -16,16 +23,24 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "PATHWAY", label: "Metabolic Pathways", icon: "account_tree" },
   { id: "REPORTS", label: "Clinical Reports", icon: "description" },
   { id: "TRIAGE", label: "Adherence Triage", icon: "assignment_ind" },
+  { id: "RESEARCH", label: "N-of-1 Research", icon: "science" },
 ];
 
 export default function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const menuRef = useRef<HTMLDivElement>(null);
   
   // Get active tab from URL or default to PRESCRIPTION
-  const initialTab = (searchParams.get("tab") as Tab) || "PRESCRIPTION";
+  const requestedTab = searchParams.get("tab") as Tab | null;
+  const initialTab: Tab =
+    requestedTab && TABS.some((tab) => tab.id === requestedTab)
+      ? requestedTab
+      : "PRESCRIPTION";
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Sync state with URL when tab changes
   const handleTabChange = (tabId: Tab) => {
@@ -35,13 +50,27 @@ export default function AppShell({ children }: AppShellProps) {
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  // Sync state if URL changes externally (e.g. back button)
+  // Handle clicks outside of profile menu to close it
   useEffect(() => {
-    const tab = searchParams.get("tab") as Tab;
-    if (tab && tab !== activeTab) {
-      setActiveTab(tab);
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
     }
-  }, [searchParams, activeTab]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await authClient.signOut();
+      router.push("/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -111,8 +140,43 @@ export default function AppShell({ children }: AppShellProps) {
               <Icon name="settings" className="h-5 w-5" />
             </button>
             <div className="h-8 w-px bg-outline-variant/30 mx-1"></div>
-            <div className="w-8 h-8 rounded-full bg-primary-container/30 border border-primary/20 overflow-hidden cursor-pointer hover:ring-2 ring-primary/30 transition-all">
-               <Icon name="account_circle" className="h-full w-full p-1.5 text-primary" />
+            <div className="relative" ref={menuRef}>
+              <div 
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="w-8 h-8 rounded-full bg-primary-container/30 border border-primary/20 overflow-hidden cursor-pointer hover:ring-2 ring-primary/30 transition-all flex items-center justify-center"
+              >
+                <Icon name="account_circle" className="h-full w-full p-1.5 text-primary" />
+              </div>
+              
+              {showProfileMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-surface border border-outline-variant/30 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-4 py-3 border-b border-outline-variant/20 mb-2">
+                    <p className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest">Active Practitioner</p>
+                    <p className="text-xs font-bold text-primary truncate mt-0.5">Clinical Staff</p>
+                  </div>
+                  
+                  <button className="w-[calc(100%-16px)] mx-2 flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all group">
+                    <Icon name="person" className="h-4 w-4" />
+                    <span className="text-xs font-bold">Clinical Profile</span>
+                  </button>
+                  
+                  <button className="w-[calc(100%-16px)] mx-2 flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all group">
+                    <Icon name="security" className="h-4 w-4" />
+                    <span className="text-xs font-bold">Access Logs</span>
+                  </button>
+                  
+                  <div className="h-px bg-outline-variant/20 my-2 mx-4"></div>
+                  
+                  <button 
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="w-[calc(100%-16px)] mx-2 flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-error/10 text-error transition-all group active:scale-95"
+                  >
+                    <Icon name={isLoggingOut ? "progress_activity" : "logout"} className={`h-4 w-4 ${isLoggingOut ? 'animate-spin' : ''}`} />
+                    <span className="text-xs font-bold">End Session</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>

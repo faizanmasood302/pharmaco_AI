@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "patients/PGX-003.md",
+                "file": "patients/NEW-PATIENT.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "PGX-003"
+              "title": "NEW-PATIENT"
             }
           }
         ]
@@ -185,20 +185,20 @@
   },
   "active": "de54b99a232cc49f",
   "lastOpenFiles": [
-    "patients/tmp_zo1xhh6.tmp",
-    "patients/tmplom0hfcp.tmp",
-    "patients/tmpx431_z2a.tmp",
+    "patients/tmpyttejs0b.tmp",
+    "patients/tmpstl40lx8.tmp",
+    "patients/tmpx4qi5j0y.tmp",
+    "patients/tmp7saosxdg.tmp",
+    "patients/tmpx1ycnqq_.tmp",
+    "patients/tmpb3t9dgwk.tmp",
+    "patients/tmpulcesp3k.tmp",
+    "patients/tmpba5bsgrg.tmp",
+    "patients/tmpgvpkj_q8.tmp",
     "patients/PGX-002.md",
     "patients/PGX-003.md",
+    "patients/tmp_zo1xhh6.tmp",
+    "patients/tmplom0hfcp.tmp",
     "patients/PGX-001.md",
-    "patients/tmpcm3_pfn6.tmp",
-    "patients/tmpku7z8ygp.tmp",
-    "patients/tmpwi60o24x.tmp",
-    "patients/tmppx0pi7az.tmp",
-    "patients/tmpu70xte82.tmp",
-    "patients/tmpovnir2ol.tmp",
-    "patients/tmp1tnby5qs.tmp",
-    "patients/tmptvsd8j1x.tmp",
     "patients/NEW-PATIENT.md",
     "clinical_logic/Metabolic_Conversion_Standards.md",
     "clinical_logic/Opioid_Prescribing_Protocol.md",

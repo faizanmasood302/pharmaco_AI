@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { EvaluationResult } from "@/lib/types";
+import type { EvaluationResult, LogicTreeNodeData } from "@/lib/types";
 import Icon from "./Icon";
 import PictogramStrip from "./PictogramStrip";
 
@@ -16,9 +16,13 @@ const RISK_STYLES: Record<string, string> = {
 interface EvaluationPanelProps {
   result: EvaluationResult;
   onNoteGenerated?: (note: string) => void;
+  onReviewDecision?: (
+    decision: "approved" | "rejected",
+    rationale: string
+  ) => Promise<boolean> | boolean;
 }
 
-function LogicTreeNode({ node }: { node: any }) {
+function LogicTreeNode({ node }: { node: LogicTreeNodeData }) {
   return (
     <div className="ml-4 border-l border-outline-variant/30 pl-4 py-2">
       <div className="flex items-center gap-2">
@@ -26,28 +30,30 @@ function LogicTreeNode({ node }: { node: any }) {
         <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface">{node.node}</span>
       </div>
       {node.detail && <p className="text-[11px] text-on-surface-variant mt-1">{node.detail}</p>}
-      {node.children?.map((child: any, i: number) => (
+      {node.children?.map((child, i) => (
         <LogicTreeNode key={i} node={child} />
       ))}
     </div>
   );
 }
 
-export default function EvaluationPanel({ result, onNoteGenerated }: EvaluationPanelProps) {
+export default function EvaluationPanel({ result, onNoteGenerated, onReviewDecision }: EvaluationPanelProps) {
   const [note, setNote] = useState<string | null>(null);
   const [loadingNote, setLoadingNote] = useState(false);
+  const [reviewNote, setReviewNote] = useState("");
+  const [decisionLoading, setDecisionLoading] = useState(false);
 
   const riskClass =
     RISK_STYLES[result.risk_level] ?? "bg-surface-variant text-on-surface-variant";
 
   async function handleGenerateNote() {
-    console.log("Starting EHR note generation for:", result.medication);
     setLoadingNote(true);
     setNote("System: Generating clinical documentation...");
     try {
       // Ensure we're sending a proper evaluation response structure
       const evaluationResponse = {
         status: result.status || "completed",
+        evaluation_id: result.evaluation_id ?? null,
         patient_id: result.patient_id || "unknown",
         medication: result.medication,
         flagged: result.flagged,
@@ -67,7 +73,9 @@ export default function EvaluationPanel({ result, onNoteGenerated }: EvaluationP
         safety_notes: result.safety_notes || [],
         agent_verdict: result.agent_verdict,
         audit_trail: result.audit_trail || [],
+        logic_tree: result.logic_tree ?? {},
         override_requirement: result.override_requirement,
+        human_gate: result.human_gate,
         next_best_actions: result.next_best_actions || []
       };
 
@@ -77,7 +85,6 @@ export default function EvaluationPanel({ result, onNoteGenerated }: EvaluationP
         body: JSON.stringify(evaluationResponse),
       });
 
-      console.log("API Response status:", res.status);
       const data = await res.json();
 
       if (!res.ok) {
@@ -88,16 +95,44 @@ export default function EvaluationPanel({ result, onNoteGenerated }: EvaluationP
         throw new Error("Backend returned success but no note content was generated.");
       }
 
-      console.log("Note received, length:", data.note.length);
       setNote(data.note);
       if (onNoteGenerated) onNoteGenerated(data.note);
+
+      // Save the report to the database
+      try {
+        await fetch("/api/clinical-reports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            evaluation_id: result.evaluation_id,
+            patient_id: result.patient_id,
+            content: data.note,
+          }),
+        });
+      } catch (saveErr) {
+        console.error("Failed to save report to database:", saveErr);
+      }
     } catch (err) {
       console.error("EHR Generation Error:", err);
       const msg = err instanceof Error ? err.message : "Internal generation failure";
       setNote(`UNABLE TO GENERATE NOTE: ${msg}`);
     } finally {
       setLoadingNote(false);
-      console.log("EHR generation process finished");
+    }
+  }
+
+  async function handleReviewDecision(decision: "approved" | "rejected") {
+    if (!onReviewDecision) return;
+    setDecisionLoading(true);
+    try {
+      const saved = await onReviewDecision(decision, reviewNote.trim());
+      if (saved) {
+        setReviewNote("");
+      }
+    } catch (err) {
+      console.error("Decision click error:", err);
+    } finally {
+      setDecisionLoading(false);
     }
   }
 
@@ -114,11 +149,21 @@ export default function EvaluationPanel({ result, onNoteGenerated }: EvaluationP
         </div>
         <button
           onClick={handleGenerateNote}
-          disabled={loadingNote}
-          className="text-[10px] font-bold uppercase tracking-widest text-primary hover:bg-primary/5 px-3 py-1.5 rounded transition-all flex items-center gap-2"
+          disabled={loadingNote || result.human_gate.status !== "approved"}
+          className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded transition-all flex items-center gap-2 ${
+            result.human_gate.status === "approved" 
+              ? "text-primary hover:bg-primary/5 active:scale-95" 
+              : "text-on-surface-variant/40"
+          }`}
         >
           <Icon name="description" className="h-4 w-4" />
-          {loadingNote ? "Generating..." : "EHR Note"}
+          {loadingNote
+            ? "Generating..."
+            : result.human_gate.status === "approved"
+              ? "Generate EHR Note"
+              : result.human_gate.status === "rejected"
+                ? "Not Approved"
+                : "Awaiting Approval"}
         </button>
       </div>
 
@@ -189,6 +234,101 @@ export default function EvaluationPanel({ result, onNoteGenerated }: EvaluationP
           )}
         </div>
 
+        <div className="rounded-lg border border-primary/15 bg-surface-container-low/20 p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant/60">
+                Human Gate Status
+              </p>
+              <p className={`mt-1 text-sm font-bold uppercase tracking-wider ${
+                result.human_gate.status === "approved" ? "text-primary" : 
+                result.human_gate.status === "rejected" ? "text-error" : "text-amber-600"
+              }`}>
+                {result.human_gate.status.replaceAll("_", " ")}
+              </p>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${
+                result.human_gate.status === "approved"
+                  ? "bg-primary/10 text-primary"
+                  : result.human_gate.status === "rejected"
+                    ? "bg-error/10 text-error"
+                    : "bg-amber-100 text-amber-800"
+              }`}
+            >
+              {result.human_gate.required ? "Clinician Review Required" : "Optional Review"}
+            </span>
+          </div>
+          
+          {result.human_gate.status === "approved" && (
+            <div className="mb-4 flex items-center gap-2 rounded bg-primary/5 px-3 py-2 text-xs font-bold text-primary animate-in fade-in zoom-in-95">
+              <Icon name="check_circle" className="h-4 w-4" />
+              Prescription authorized for EHR and Adherence monitoring.
+            </div>
+          )}
+
+          <p className="text-xs leading-relaxed text-on-surface-variant">
+            {result.human_gate.reason}
+          </p>
+          {result.human_gate.review_notes && (
+            <p className="mt-3 rounded border border-outline-variant/20 bg-background px-3 py-2 text-xs text-on-surface-variant">
+              <span className="font-bold text-on-surface">Clinician note: </span>
+              {result.human_gate.review_notes}
+            </p>
+          )}
+          {result.human_gate.reviewed_by && (
+            <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">
+              Reviewed by {result.human_gate.reviewed_by}
+            </p>
+          )}
+          {result.human_gate.reviewed_at && (
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/40">
+              Reviewed at {new Date(result.human_gate.reviewed_at).toLocaleString()}
+            </p>
+          )}
+          {result.human_gate.required_fields.length > 0 && (
+            <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+              {result.human_gate.required_fields.map((field) => (
+                <div
+                  key={field}
+                  className="rounded border border-outline-variant/30 bg-surface px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant"
+                >
+                  {field.replaceAll("_", " ")}
+                </div>
+              ))}
+            </div>
+          )}
+          {result.human_gate.status === "pending" && onReviewDecision && (
+            <div className="mt-4 space-y-3">
+              <textarea
+                value={reviewNote}
+                onChange={(e) => setReviewNote(e.target.value)}
+                rows={3}
+                className="input-clinical w-full rounded-lg bg-background px-3 py-2 text-xs"
+                placeholder="Optional clinician rationale for approve/reject..."
+              />
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleReviewDecision("approved")}
+                  disabled={decisionLoading}
+                  className="bg-primary text-on-primary text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded hover:bg-primary/90 transition-all shadow-sm disabled:opacity-60"
+                >
+                  {decisionLoading ? "Saving..." : "Approve"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleReviewDecision("rejected")}
+                  disabled={decisionLoading}
+                  className="bg-error text-on-error text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded hover:bg-error/90 transition-all shadow-sm disabled:opacity-60"
+                >
+                  {decisionLoading ? "Saving..." : "Reject"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {result.recommended_alternative && (
           <div className="bg-surface-container-low border border-primary/10 rounded-lg p-5">
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary mb-2">
@@ -225,15 +365,19 @@ export default function EvaluationPanel({ result, onNoteGenerated }: EvaluationP
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-           <div className="p-4 rounded-lg bg-background border border-outline-variant/20">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant/60 block mb-1">Gene Target</span>
-              <p className="text-xs font-mono font-bold text-on-surface">{result.patient?.cyp_profiles[0]?.gene} {result.patient?.cyp_profiles[0]?.diplotype}</p>
-           </div>
-           <div className="p-4 rounded-lg bg-background border border-outline-variant/20">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant/60 block mb-1">Phenotype</span>
-              <p className="text-xs font-bold text-on-surface">{result.patient?.cyp_profiles[0]?.phenotype}</p>
-           </div>
+        <div className="space-y-4 pt-2">
+          {result.patient?.cyp_profiles.map((profile, idx) => (
+            <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-lg bg-background border border-outline-variant/20">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant/60 block mb-1">Gene Target ({profile.gene})</span>
+                <p className="text-xs font-mono font-bold text-on-surface">{profile.gene} {profile.diplotype}</p>
+              </div>
+              <div className="p-4 rounded-lg bg-background border border-outline-variant/20">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant/60 block mb-1">Phenotype</span>
+                <p className="text-xs font-bold text-on-surface">{profile.phenotype}</p>
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

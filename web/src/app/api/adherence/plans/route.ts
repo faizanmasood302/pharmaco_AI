@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { proxyPost } from "@/lib/api";
 
 export async function POST(request: NextRequest) {
+  const token = request.cookies.get("better-auth.session_token")?.value;
   try {
     const body = await request.json();
-    const data = await proxyPost("/api/adherence/plans", body);
+    const data = await proxyPost("/api/adherence/plans", body, token);
     return NextResponse.json(data);
   } catch (e) {
     return NextResponse.json(

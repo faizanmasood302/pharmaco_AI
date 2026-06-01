@@ -57,6 +57,11 @@ export default function AdherencePanel({
       }),
     });
     const data = await res.json();
+    if (!res.ok || data.status === "error" || !data.triage) {
+      setFeedback(data.error ?? data.detail ?? data.message ?? "Check-in triage failed");
+      return;
+    }
+
     if (res.ok) {
       setFeedback(
         JSON.stringify({
@@ -101,7 +106,7 @@ export default function AdherencePanel({
     <div className="space-y-6">
       <div className="flex items-center justify-between px-2">
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-primary">Active Surveillance</h3>
-        <span className="text-[10px] font-bold text-on-surface-variant/50">Plan ID: {plan.plan_id.slice(0,8)}</span>
+        <span className="text-[10px] font-bold text-on-surface-variant/50">Plan ID: {plan.plan_id?.slice(0,8) || 'N/A'}</span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -201,6 +206,11 @@ export default function AdherencePanel({
                </p>
             </div>
           </div>
+        </div>
+      )}
+      {feedback && !feedbackData && (
+        <div className="rounded-lg border border-error/20 bg-error/5 p-4 text-xs font-bold text-error">
+          {feedback}
         </div>
       )}
     </div>

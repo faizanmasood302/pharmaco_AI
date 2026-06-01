@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import os
 import time
+import logging
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 from config import GROQ_MODEL
 

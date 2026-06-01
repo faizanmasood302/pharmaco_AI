@@ -28,8 +28,8 @@ def enforce_policy(medication: str, risk_level: str, rationale: str) -> tuple[st
     start = time.perf_counter()
     
     # 1. Resolve Vault Path
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    policy_path = os.path.join(base_dir, "vault", "clinical_logic", "Override_and_Audit_Policy.md")
+    base_dir = os.environ.get("VAULT_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "vault"))
+    policy_path = os.path.join(base_dir, "clinical_logic", "Override_and_Audit_Policy.md")
     
     # 2. Read Local Policy
     try:
@@ -40,8 +40,8 @@ def enforce_policy(medication: str, risk_level: str, rationale: str) -> tuple[st
         policy_text = "Default Clinic Policy: All HIGH/CRITICAL risks require clinical justification."
 
     # 3. Use LLM as the 'Enforcer' using the Policy as context
-    verdict = "REVIEW REQUIRED"
-    analysis = "Evaluating compliance against local protocols..."
+    verdict = None
+    analysis = None
 
     if _groq and os.environ.get("GROQ_API_KEY"):
         try:
@@ -72,8 +72,8 @@ def enforce_policy(medication: str, risk_level: str, rationale: str) -> tuple[st
             analysis = raw_output
         except Exception as e:
             logger.error(f"Policy Enforcer LLM call failed: {e}")
-            analysis = f"Automated enforcement failed: {str(e)}"
-    else:
+            
+    if verdict is None:
         # Heuristic fallback
         if risk_level.upper() in ["CRITICAL", "HIGH"]:
             verdict = "BLOCKED"

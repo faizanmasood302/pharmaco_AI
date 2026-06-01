@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import EvaluationPanel from '../components/EvaluationPanel';
@@ -34,6 +34,15 @@ const mockResult: EvaluationResult = {
   audit_trail: [],
   logic_tree: {},
   override_requirement: { required: true, reason: 'High risk', required_fields: [] },
+  human_gate: {
+    required: true,
+    status: 'approved',
+    reason: 'Clinician review completed.',
+    review_notes: 'Approved after review.',
+    reviewed_by: 'clinician@example.com',
+    reviewed_at: '2026-06-01T00:00:00.000Z',
+    required_fields: []
+  },
   next_best_actions: ['Consult specialist']
 };
 

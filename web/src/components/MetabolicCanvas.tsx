@@ -7,26 +7,51 @@ interface MetabolicCanvasProps {
   riskLevel?: 'optimal' | 'elevated' | 'critical';
 }
 
+type MetabolicStateKey = 'optimal' | 'elevated' | 'critical';
+
+interface MetabolicState {
+  color: [number, number, number];
+  pulse: number;
+  chaos: number;
+  glow: number;
+  speed: number;
+  label: string;
+}
+
+interface GridPoint {
+  px: number;
+  py: number;
+  sc: number;
+  z: number;
+  b: number;
+}
+
+const METABOLIC_STATES: Record<MetabolicStateKey, MetabolicState> = {
+  optimal: { color: [0, 107, 94], pulse: 0.015, chaos: 0, glow: 0.3, label: 'METABOLIC STATE: OPTIMAL', speed: 0.4 },
+  elevated: { color: [194, 116, 0], pulse: 0.032, chaos: 0.18, glow: 0.4, label: 'METABOLIC STATE: ELEVATED RISK', speed: 0.7 },
+  critical: { color: [186, 26, 26], pulse: 0.07, chaos: 0.44, glow: 0.6, label: 'METABOLIC STATE: CRITICAL RISK', speed: 1.3 }
+};
+
+function targetKeyForRisk(hasWarning: boolean, riskLevel?: MetabolicStateKey): MetabolicStateKey {
+  if (riskLevel === 'critical') return 'critical';
+  if (riskLevel === 'elevated') return 'elevated';
+  return hasWarning ? 'elevated' : 'optimal';
+}
+
 export default function MetabolicCanvas({ hasWarning, riskLevel }: MetabolicCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const displayState = METABOLIC_STATES[targetKeyForRisk(hasWarning, riskLevel)];
   const stateRef = useRef({
     t: 0,
     noise: [] as number[],
     lerpT: 1,
-    current: { color: [0, 255, 170], pulse: 0.015, chaos: 0, glow: 0.4, speed: 0.4 },
-    target: { color: [0, 255, 170], pulse: 0.015, chaos: 0, glow: 0.4, speed: 0.4 },
-    colorL: [0, 255, 170],
+    target: METABOLIC_STATES.optimal,
+    colorL: [0, 255, 170] as [number, number, number],
     pulseL: 0.015,
     chaosL: 0,
     glowL: 0.4,
     speedL: 0.4,
   });
-
-  const states = {
-    optimal: { color: [0, 107, 94], pulse: 0.015, chaos: 0, glow: 0.3, label: 'METABOLIC STATE: OPTIMAL', speed: 0.4 },
-    elevated: { color: [194, 116, 0], pulse: 0.032, chaos: 0.18, glow: 0.4, label: 'METABOLIC STATE: ELEVATED RISK', speed: 0.7 },
-    critical: { color: [186, 26, 26], pulse: 0.07, chaos: 0.44, glow: 0.6, label: 'METABOLIC STATE: CRITICAL RISK', speed: 1.3 }
-  };
 
   useEffect(() => {
     // Initialize noise
@@ -43,15 +68,16 @@ export default function MetabolicCanvas({ hasWarning, riskLevel }: MetabolicCanv
     let animationFrameId: number;
 
     const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-    const lerpArr = (a: number[], b: number[], t: number) => a.map((v, i) => lerp(v, b[i], t));
+    const lerpArr = (a: number[], b: number[], t: number) =>
+      a.map((v, i) => lerp(v, b[i], t)) as [number, number, number];
 
-    const project = (x: number, y: number, z: number, cx: number, cy: number) => {
+    const project = (x: number, y: number, z: number, cx: number, cy: number): [number, number, number] => {
       const fov = 420, zOff = 600;
       const scale = fov / (fov + z + zOff);
       return [cx + x * scale, cy + y * scale, scale];
     };
 
-    const spherePt = (lat: number, lon: number, rx: number, ry: number, rz: number, time: number, chaos: number) => {
+    const spherePt = (lat: number, lon: number, rx: number, ry: number, rz: number, time: number, chaos: number): [number, number, number] => {
       const R = 160;
       const phi = (lat / LATS) * Math.PI;
       const theta = (lon / LONS) * Math.PI * 2;
@@ -65,14 +91,14 @@ export default function MetabolicCanvas({ hasWarning, riskLevel }: MetabolicCanv
       const cx = Math.cos(rx), sx = Math.sin(rx);
       const cy = Math.cos(ry), sy = Math.sin(ry);
       const cz = Math.cos(rz), sz = Math.sin(rz);
-      let x1 = x0, y1 = y0 * cx - z0 * sx, z1 = y0 * sx + z0 * cx;
-      let x2 = x1 * cy + z1 * sy, y2 = y1, z2 = -x1 * sy + z1 * cy;
-      let x3 = x2 * cz - y2 * sz, y3 = x2 * sz + y2 * cz, z3 = z2;
+      const x1 = x0, y1 = y0 * cx - z0 * sx, z1 = y0 * sx + z0 * cx;
+      const x2 = x1 * cy + z1 * sy, y2 = y1, z2 = -x1 * sy + z1 * cy;
+      const x3 = x2 * cz - y2 * sz, y3 = x2 * sz + y2 * cz, z3 = z2;
       return [x3, y3, z3];
     };
 
     const draw = () => {
-      const { target, colorL, pulseL, chaosL, glowL, speedL, t, lerpT } = stateRef.current;
+      const { target, colorL, pulseL, chaosL, glowL, speedL, lerpT } = stateRef.current;
       const W = canvas.width, H = canvas.height;
       const cx = W / 2, cy = H / 2;
       const R = 160;
@@ -82,7 +108,7 @@ export default function MetabolicCanvas({ hasWarning, riskLevel }: MetabolicCanv
       const ease = stateRef.current.lerpT < 1 ? 1 - (1 - stateRef.current.lerpT) * (1 - stateRef.current.lerpT) * (1 - stateRef.current.lerpT) : 1;
 
       // Safe check for target
-      const activeTarget = target || states.optimal;
+      const activeTarget = target || METABOLIC_STATES.optimal;
 
       stateRef.current.colorL = lerpArr(colorL, activeTarget.color, ease * 0.08);
       stateRef.current.pulseL = lerp(pulseL, activeTarget.pulse, ease * 0.06);
@@ -100,7 +126,7 @@ export default function MetabolicCanvas({ hasWarning, riskLevel }: MetabolicCanv
       const pulseScale = 1 + stateRef.current.pulseL * Math.sin(stateRef.current.t * 4.5);
       const [r, g, b] = stateRef.current.colorL.map(Math.round);
 
-      const grid: any[][] = [];
+      const grid: GridPoint[][] = [];
       for (let la = 0; la <= LATS; la++) {
         grid[la] = [];
         for (let lo = 0; lo <= LONS; lo++) {
@@ -135,7 +161,7 @@ export default function MetabolicCanvas({ hasWarning, riskLevel }: MetabolicCanv
         }
       }
 
-      const nodes: any[] = [];
+      const nodes: GridPoint[] = [];
       const step = Math.max(2, Math.round(3 - stateRef.current.chaosL * 1.5));
       for (let la = 0; la <= LATS; la += step) {
         for (let lo = 0; lo < LONS; lo += step) {
@@ -182,18 +208,8 @@ export default function MetabolicCanvas({ hasWarning, riskLevel }: MetabolicCanv
   }, []);
 
   useEffect(() => {
-    let targetKey: 'optimal' | 'elevated' | 'critical' = 'optimal';
-    
-    const risk = riskLevel?.toLowerCase() || '';
-    if (risk === 'critical') {
-      targetKey = 'critical';
-    } else if (risk === 'high' || risk === 'moderate' || risk === 'elevated') {
-      targetKey = 'elevated';
-    } else {
-      targetKey = 'optimal';
-    }
-
-    stateRef.current.target = states[targetKey];
+    const targetKey = targetKeyForRisk(hasWarning, riskLevel);
+    stateRef.current.target = METABOLIC_STATES[targetKey];
     stateRef.current.lerpT = 0;
   }, [hasWarning, riskLevel]);
 
@@ -207,9 +223,9 @@ export default function MetabolicCanvas({ hasWarning, riskLevel }: MetabolicCanv
       />
       <div 
         className="absolute bottom-4 left-1/2 -translate-x-1/2 font-mono text-[10px] tracking-[0.2em] font-bold uppercase pointer-events-none transition-colors duration-500"
-        style={{ color: `rgb(${stateRef.current.target.color.join(',')})` }}
+        style={{ color: `rgb(${displayState.color.join(',')})` }}
       >
-        {stateRef.current.target.label}
+        {displayState.label}
       </div>
     </div>
   );

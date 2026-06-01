@@ -2,16 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { proxyPost } from "@/lib/api";
 
 export async function POST(request: NextRequest) {
+  const token = request.cookies.get("better-auth.session_token")?.value;
   try {
     const body = await request.json();
-    console.log("Clinical note request received:", JSON.stringify(body, null, 2));
 
-    const data = await proxyPost("/api/clinical-note", body);
-    console.log("Clinical note response:", JSON.stringify(data, null, 2));
+    const data = await proxyPost("/api/clinical-note", body, token);
 
     // Ensure response has note field
     if (!data.note) {
-      console.error("No note in response:", data);
       throw new Error("Backend response missing note field");
     }
 

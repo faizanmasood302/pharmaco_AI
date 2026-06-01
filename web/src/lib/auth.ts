@@ -7,10 +7,7 @@ const pool = new Pool({
 });
 
 export const auth = betterAuth({
-  database: {
-    db: pool,
-    type: "postgres",
-  },
+  database: pool,
   emailAndPassword: {
     enabled: true,
   },
