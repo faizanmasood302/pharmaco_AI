@@ -1,82 +1,46 @@
-# Pharmacogenomic Harness
+# Pharmacogenomic (PGx) Agent Harness
 
-**AI agent harness for n-of-1 prescribing decisions** — built for [YC's AI Personalized Medicine](https://www.ycombinator.com/rfs) request.
+**Agentic decision support for precision prescribing and experimental therapy design.**
 
-Modern prescribing is still population-average. That drives two crises: **$1.45T** in substance abuse (genetically vulnerable patients get dangerous opioid spikes from prodrugs like codeine) and **$290B** in non-adherence (ineffective metabolism → side effects → patients stop therapy).
+---
 
-We intercept the prescription **before dispensing**: ingest n-of-1 genetic data (CYP2D6 phenotype), run a multi-agent pipeline, and **change the treatment decision** when biology and drug don't match.
+## 🚀 Overview
 
-## Demo (60 seconds)
+The Pharmacogenomic Harness is a dual-pipeline clinical AI system that provides auditable, evidence-backed support for personalized medicine. It bridges the gap between population-level clinical guidelines and patient-specific genomic data.
 
-1. Start backend: `cd agent-server && uv run uvicorn main:app --reload`
-2. Start frontend: `cd web && npm run dev`
-3. Open [http://localhost:3000](http://localhost:3000)
-4. **(Optional)** Import FHIR sample → new patient in dropdown
-5. Select **Maria Chen (Ultra-Rapid CYP2D6)** + **Codeine** → **Evaluate**
-6. See: **CRITICAL** block, safe alternative (Duloxetine), agent pipeline, pulsing 3D metabolic warning
-7. **Control:** Sarah Patel + Pregabalin → approved → **Start adherence monitoring**
+### Dual-Pipeline Architecture
 
-**Deploy:** See [DEPLOY.md](DEPLOY.md).
+| Pipeline | Purpose | Key Agents |
+| :--- | :--- | :--- |
+| **Standard Care** | PGx Evaluation | Analyst, Critic, Reporter |
+| **N-of-1 Research** | Experimental Therapy Design | Design, Validation (Bioinformatics), Critic |
 
-## Architecture
+*All workflows feature a strict **Human Gate** to ensure clinical accountability.*
 
-| Layer | Stack | Role |
-|-------|--------|------|
-| Web | Next.js 16, R3F, GSAP | Clinician UI, visual informatics alert |
-| Auth | BetterAuth | Self-hosted practitioner login/signup |
-| Agent server | FastAPI, Python 3.12 | Multi-agent PGx orchestration |
-| Rules engine | Deterministic CPIC-aligned CYP2D6 rules | Reliable demo + production core |
-| Optional LLM | Groq | Clinical narrative enrichment |
-| Data | Supabase (PostgreSQL) | Synthetic FHIR-ready profiles |
+---
 
-**Agent pipeline:** Research → Analyst → Critic → Orchestrator (+ Adherence agent post-approval)
+## 🛠 Tech Stack
 
-**API highlights:** `POST /api/ingest-fhir`, `GET /api/evaluations/{id}`, `POST /api/adherence/plans`
+- **Backend:** Python (FastAPI, LangGraph) for agentic orchestration.
+- **Frontend:** Next.js (TypeScript, React) for professional clinical dashboards.
+- **Data & Memory:** Supabase (PostgreSQL) for live state; Obsidian (Markdown Vault) for persistent clinical wisdom.
+- **Security:** JWT-based authentication and strict Row-Level Security (RLS).
 
-## Quick start
+---
 
-### Prerequisites
+## 🏛 Architecture
 
-- Python 3.12+ with [uv](https://github.com/astral-sh/uv)
-- Node.js 20+
-- Supabase project (PostgreSQL)
+![System Pipeline](v4_dual_pipeline_architecture.svg)
 
-### Backend
+---
 
-```bash
-cd agent-server
-uv sync
-# optional: copy .env.example to .env and set GROQ_API_KEY
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
+## 🚀 Getting Started
 
-### Frontend
+1. **Clone the repo:** `git clone https://github.com/faizanmasood302/pharmaco_AI.git`
+2. **Environment:** Copy `.env.example` to `agent-server/.env` and `web/.env.local`.
+3. **Run stack:** `docker-compose up --build`
 
-```bash
-cd web
-npm install
-# required: .env with BETTER_AUTH_SECRET and DATABASE_URL
-npm run dev
-```
+---
 
-## Environment variables
-
-| Variable | Where | Required |
-|----------|--------|----------|
-| `GROQ_API_KEY` | agent-server | No (deterministic rules work without it) |
-| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | agent-server | Yes (for session verification) |
-| `AGENT_SERVER_URL` | web | No (defaults to `http://127.0.0.1:8000`) |
-| `DATABASE_URL` | web | Yes (Direct Postgres connection) |
-| `BETTER_AUTH_SECRET` | web | Yes (32+ character random string) |
-
-## Go-to-market wedge
-
-Per `ARCHITECTURE.md`: bypass 12–18 month hospital EHR cycles by targeting **boutique pain clinics** and **DTC telehealth** with synthetic/FHIR-linked PGx ingestion.
-
-## YC application
-
-See [YC_APPLICATION.md](./YC_APPLICATION.md) for pitch framing aligned with Ankit Gupta's RFS.
-
-## Disclaimer
-
-Synthetic demo data only. Not a medical device. Not for clinical use.
+## 🔒 Security
+This harness uses **Synthetic Demo Data only**. Never process real PII or PHI. See [SECURITY.md](SECURITY.md) for vulnerability reporting.
