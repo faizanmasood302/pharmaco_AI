@@ -17,6 +17,14 @@ import {
   ArrowRightLeft, 
   Timer, 
   ShieldCheck, 
+  Dna,
+  Mail,
+  Lock,
+  AlertCircle,
+  LogIn,
+  User,
+  Shield,
+  Check,
   type LucideProps 
 } from 'lucide-react';
 
@@ -40,6 +48,14 @@ const ICON_MAP: Record<string, React.ElementType> = {
   timer: Timer,
   verified_user: ShieldCheck,
   warning: AlertTriangle,
+  biotech: Dna,
+  mail: Mail,
+  lock: Lock,
+  error: AlertCircle,
+  login: LogIn,
+  person: User,
+  security: Shield,
+  check: Check,
 };
 
 type IconProps = LucideProps & {
