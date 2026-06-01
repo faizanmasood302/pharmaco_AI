@@ -151,13 +151,14 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 import time
 import uuid
 from typing import Any
 
 from dotenv import load_dotenv
 
+from agents.knowledge import retrieve_clinical_evidence
+from agents.research import research_patient
 from config import GROQ_MODEL
 from db.supabase import save_evaluation
 from models import (
@@ -170,12 +171,22 @@ from models import (
     PatientOut,
     ReasoningOutput,
 )
-from agents.knowledge import retrieve_clinical_evidence
-from agents.research import research_patient
 
 logger = logging.getLogger(__name__)
 
 load_dotenv()
+
+DEMO_FORMULARY = {
+    "acetaminophen (scheduled)",
+    "clopidogrel",
+    "codeine",
+    "duloxetine",
+    "hydrocodone",
+    "ibuprofen",
+    "oxycodone",
+    "pregabalin",
+    "tramadol",
+}
 
 try:
     from groq import Groq
@@ -287,6 +298,34 @@ def _fallback_reasoning(
     phenotype_lower = phenotype.lower().strip()
     evidence_lower = (evidence_text or "").lower()
 
+    if medication_lower not in DEMO_FORMULARY:
+        return ReasoningOutput(
+            flagged=False,
+            risk_level="low",
+            risk_summary=(
+                f"{medication} is not in the demo formulary; no PGx-specific "
+                "rule was triggered, so clinician review is required before "
+                "any prescribing decision."
+            ),
+            recommended_alternative=None,
+            alternative_rationale=(
+                "No formulary-backed alternative was generated for an "
+                "unknown medication."
+            ),
+            cpic_note="No demo CPIC rule is available for this medication.",
+            cpic_level="informative",
+            decision_confidence=0.55,
+            next_best_actions=[
+                "Verify the medication name against the supported formulary.",
+                "Use clinician judgment before proceeding.",
+            ],
+            reasoning_summary=(
+                f"{medication} is outside the demo formulary and remains "
+                "gated for clinician review."
+            ),
+            human_gate_required=True,
+        )
+
     if medication_lower in {"pregabalin", "acetaminophen (scheduled)", "ibuprofen"}:
         return ReasoningOutput(
             flagged=False,
@@ -316,8 +355,11 @@ def _fallback_reasoning(
                 risk_summary=(
                     f"{phenotype} plus {medication} is associated with excessive active-metabolite formation and toxicity risk."
                 ),
-                recommended_alternative="Duloxetine" if "duloxetine" in evidence_lower else "Pregabalin",
-                alternative_rationale="The retrieved evidence favors a non-prodrug alternative to avoid rapid activation.",
+                recommended_alternative="Duloxetine",
+                alternative_rationale=(
+                    "Safety-verified alternative avoids CYP2D6 prodrug "
+                    "activation and lowers rapid-conversion risk."
+                ),
                 cpic_note="CPIC-aligned evidence recommends avoiding the prodrug in ultra-rapid metabolizers.",
                 cpic_level="strong",
                 decision_confidence=0.96,
@@ -339,8 +381,11 @@ def _fallback_reasoning(
                 risk_summary=(
                     f"{phenotype} plus {medication} is likely to underperform because activation is impaired."
                 ),
-                recommended_alternative="Duloxetine" if "duloxetine" in evidence_lower else "Pregabalin",
-                alternative_rationale="The evidence favors a biologically safer alternative with less dependence on the affected enzyme.",
+                recommended_alternative="Duloxetine",
+                alternative_rationale=(
+                    "Safety-verified alternative has less dependence on the "
+                    "affected CYP2D6 activation pathway."
+                ),
                 cpic_note="Evidence indicates reduced conversion and likely treatment failure.",
                 cpic_level="strong",
                 decision_confidence=0.92,
@@ -869,13 +914,17 @@ def orchestrate(patient_id: str, medication: str) -> EvaluationResponse:
         next_best_actions=next_best_actions,
     )
 
-    response.evaluation_id = save_evaluation(
+    # Save the evaluation and use the ID returned by save_evaluation
+    # Note: response.model_dump() now includes the evaluation_id set above
+    persisted_id = save_evaluation(
         response.patient_id,
         response.medication,
         response.flagged,
         response.risk_level,
         response.model_dump(),
     )
+    response.evaluation_id = persisted_id
+    
     return response
 ```
 
@@ -908,6 +957,43 @@ def analyze_risk(
         summary = assessment.risk_summary
 
     return assessment, summary, elapsed
+```
+
+## `bioinformatics_adapter.py`
+
+```python
+from __future__ import annotations
+
+import hashlib
+import time
+from typing import Any
+
+
+def simulate_folding_energy(sequence: str) -> float:
+    """Simulate a MFE (Minimum Free Energy) calculation for RNA folding."""
+    # Deterministic but pseudo-random energy based on sequence
+    seed = hashlib.sha256(sequence.encode("utf-8")).hexdigest()
+    base_energy = -20.0 - (int(seed[:4], 16) % 30)
+    # Penalize GC content imbalance
+    gc = (sequence.count("G") + sequence.count("C")) / len(sequence) if sequence else 0.5
+    penalty = abs(gc - 0.52) * 50
+    return round(base_energy + penalty, 2)
+
+
+def simulate_homology_search(sequence: str) -> list[dict[str, Any]]:
+    """Simulate a BLAST-like homology search for off-target risks."""
+    # Deterministic mock results
+    if "AAAAA" in sequence:
+        return [{"target": "Poly-A binding protein region", "identity": 0.85, "e_value": 1e-5}]
+    return []
+
+
+def simulate_immunogenicity_score(sequence: str) -> float:
+    """Simulate a predicted immunogenicity score."""
+    # Simple heuristic for demo
+    motifs = ("UGUGU", "GUCCUUCAA", "UGU")
+    count = sum(sequence.count(m) for m in motifs)
+    return min(1.0, count * 0.15)
 ```
 
 ## `challenger.py`
@@ -1050,9 +1136,30 @@ def critique_prescription(assessment: RiskAssessment) -> tuple[RiskAssessment, s
 ```python
 from __future__ import annotations
 
+import hashlib
 import time
+from typing import Any
 
-def design_mrna_therapy(patient_profile: dict | None, target_disease: str, feedback: str | None = None) -> tuple[str, str, int]:
+BALANCED_CODONS = (
+    "GCU",
+    "GAA",
+    "CAA",
+    "UGG",
+    "AUC",
+    "GAC",
+    "AAA",
+    "CGU",
+    "UAC",
+    "CCA",
+)
+LOW_GC_CODONS = ("AAU", "AUA", "UUA", "CAA", "GAA", "UAU", "AUC", "AAA")
+
+
+def design_mrna_therapy(
+    patient_profile: dict | None,
+    target_disease: str,
+    feedback: str | None = None,
+) -> tuple[str, str, int]:
     """
     The Generative Agent (The Designer)
     Drafts the actual biological code (mRNA sequence) targeting the patient's disease.
@@ -1060,13 +1167,20 @@ def design_mrna_therapy(patient_profile: dict | None, target_disease: str, feedb
     start = time.time()
     
     phenotype = "Unknown"
-    if patient_profile and "cyp_profiles" in patient_profile and patient_profile["cyp_profiles"]:
+    if (
+        patient_profile
+        and "cyp_profiles" in patient_profile
+        and patient_profile["cyp_profiles"]
+    ):
         phenotype = patient_profile["cyp_profiles"][0]["phenotype"]
     
     # Mocking base structural generation of an mRNA sequence based on constraints
     sequence = "AUG" + "GCA" * 15 + "UAA"
     
-    rationale = f"Drafted candidate mRNA sequence for {target_disease} optimized for {phenotype} metabolizer. "
+    rationale = (
+        f"Drafted candidate mRNA sequence for {target_disease} optimized "
+        f"for {phenotype} metabolizer. "
+    )
     
     if feedback:
         rationale += f"Incorporated previous validation feedback: {feedback}."
@@ -1076,6 +1190,73 @@ def design_mrna_therapy(patient_profile: dict | None, target_disease: str, feedb
     duration_ms = int((time.time() - start) * 1000)
     
     return sequence, rationale, duration_ms
+
+
+def _stable_index(seed: str, modulo: int) -> int:
+    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
+    return int(digest[:8], 16) % modulo
+
+
+def _patient_phenotype(patient_profile: dict[str, Any] | None) -> str:
+    if patient_profile and patient_profile.get("cyp_profiles"):
+        return patient_profile["cyp_profiles"][0].get("phenotype", "Unknown")
+    return "Unknown"
+
+
+def design_research_mrna_candidate(
+    patient_profile: dict[str, Any] | None,
+    target_disease: str,
+    evidence_bundle: dict[str, Any],
+    *,
+    iteration: int,
+    revision_hints: list[str] | None = None,
+) -> tuple[dict[str, Any], int]:
+    """Create a deterministic simulated mRNA candidate for research review."""
+    start = time.perf_counter()
+    hints = revision_hints or []
+    phenotype = _patient_phenotype(patient_profile)
+    sources = evidence_bundle.get("sources", [])
+    use_low_gc = any("gc" in hint.lower() for hint in hints)
+    codon_pool = LOW_GC_CODONS if use_low_gc else BALANCED_CODONS
+
+    patient_id = patient_profile.get("id") if patient_profile else "unknown"
+    seed = f"{patient_id}:{target_disease}:{iteration}:{'|'.join(hints)}"
+    offset = _stable_index(seed, len(codon_pool))
+    body_codons = [
+        codon_pool[(offset + index) % len(codon_pool)]
+        for index in range(18)
+    ]
+    sequence = "AUG" + "".join(body_codons) + "UAA"
+    sequence_hash = hashlib.sha256(sequence.encode("utf-8")).hexdigest()[:12]
+    candidate_id = f"therapy-cand-{sequence_hash}-{iteration}"
+
+    constraints = [
+        "research simulation only",
+        "RNA alphabet only",
+        "AUG start codon",
+        "terminal stop codon",
+        "no intentional internal stop codons",
+        "deterministic validation required",
+        "human review required",
+    ]
+    if hints:
+        constraints.extend(f"revision: {hint}" for hint in hints)
+
+    candidate = {
+        "candidate_id": candidate_id,
+        "iteration": iteration,
+        "modality": "simulated_mrna",
+        "sequence": sequence,
+        "design_constraints": constraints,
+        "rationale": (
+            f"Drafted a simulated mRNA candidate for {target_disease} using "
+            f"patient phenotype context ({phenotype}) and retrieved research "
+            f"evidence from {', '.join(sources) if sources else 'no sources'}."
+        ),
+        "evidence_refs": sources,
+    }
+    elapsed = int((time.perf_counter() - start) * 1000)
+    return candidate, elapsed
 ```
 
 ## `knowledge.py`
@@ -1389,6 +1570,7 @@ def _write_to_vault(patient_id: str, med: str, summary: str, history: str):
 from __future__ import annotations
 
 from agents.agentic import orchestrate
+
 ```
 
 ## `policy_enforcer.py`
@@ -1682,90 +1864,878 @@ def research_patient(patient_id: str) -> tuple[PatientRecord | None, str, int]:
 ```python
 from __future__ import annotations
 
-import logging
+import time
+import uuid
+from typing import Any, TypedDict
+
+from langgraph.graph import END, START, StateGraph
+
+from agents.generative import design_research_mrna_candidate
 from agents.research import research_patient
-from agents.generative import design_mrna_therapy
-from agents.validation import validate_mrna_sequence
-from models import AgentStep, TherapyGenerationResponse
+from agents.therapy_rag import retrieve_therapy_evidence
+from agents.validation import validate_research_mrna_candidate
+from models import (
+    AgentStep,
+    AuditEvent,
+    HumanGate,
+    TherapyCandidate,
+    TherapyEvidenceBundle,
+    TherapyGenerationResponse,
+    TherapyValidationResult,
+)
 
-logger = logging.getLogger(__name__)
 
-def orchestrate_therapy_generation(patient_id: str, target_disease: str) -> TherapyGenerationResponse:
-    """
-    Implements the "closed loop" described in llmsreview.md.
-    Loops between Generative (Designer) and Validation (Safety) until a safe candidate is produced.
-    """
-    steps: list[AgentStep] = []
-    
-    # 1. Retrieval Agent (The Researcher)
-    patient, research_summary, research_ms = research_patient(patient_id)
-    steps.append(
-        AgentStep(
-            agent="Retrieval",
-            status="complete" if patient else "warning",
-            summary=research_summary,
-            duration_ms=research_ms,
-            confidence=0.95 if patient else 0.2,
-            evidence_refs=["patient_profile", "ClinVar", "PubMed"],
-        )
+class TherapyGraphState(TypedDict, total=False):
+    therapy_request_id: str
+    patient_id: str
+    target_disease: str
+    max_iterations: int
+    patient: dict[str, Any] | None
+    patient_context: dict[str, Any] | None
+    evidence_bundle: dict[str, Any] | None
+    target_profile: dict[str, Any] | None
+    candidate_history: list[dict[str, Any]]
+    active_candidate: dict[str, Any] | None
+    validation_result: dict[str, Any] | None
+    critique: dict[str, Any] | None
+    revision_hints: list[str]
+    iteration: int
+    status: str
+    agent_steps: list[AgentStep]
+    audit_events: list[AuditEvent]
+    safety_notes: list[str]
+    clinical_narrative: str
+
+
+def _step(
+    agent: str,
+    status: str,
+    summary: str,
+    duration_ms: int,
+    confidence: float,
+    evidence_refs: list[str] | None = None,
+) -> AgentStep:
+    return AgentStep(
+        agent=agent,
+        status=status,
+        summary=summary,
+        duration_ms=duration_ms,
+        confidence=confidence,
+        evidence_refs=evidence_refs or [],
     )
 
-    max_iterations = 3
-    safe_sequence = None
-    final_toxicity = None
-    feedback = None
+
+def _audit(
+    stage: str,
+    decision: str,
+    rationale: str,
+    *,
+    human: bool = False,
+) -> AuditEvent:
+    return AuditEvent(
+        stage=stage,
+        decision=decision,
+        rationale=rationale,
+        requires_human_review=human,
+    )
+
+
+def _append_step(state: TherapyGraphState, step: AgentStep) -> list[AgentStep]:
+    return [*state.get("agent_steps", []), step]
+
+
+def _append_audit(state: TherapyGraphState, event: AuditEvent) -> list[AuditEvent]:
+    return [*state.get("audit_events", []), event]
+
+
+def request_guardrails_node(state: TherapyGraphState) -> dict[str, Any]:
+    start = time.perf_counter()
+    target = state["target_disease"].strip()
+    warnings = [
+        "Research simulation only; not clinically validated.",
+        "No autonomous treatment, dosing, or manufacturing use.",
+    ]
+    downstream_terms = ("dose", "inject", "manufacturing-ready")
+    if any(term in target.lower() for term in downstream_terms):
+        warnings.append(
+            "Request language includes downstream-use terms; final review gate "
+            "will remain locked."
+        )
+
+    elapsed = int((time.perf_counter() - start) * 1000)
+    return {
+        "target_disease": target,
+        "safety_notes": warnings,
+        "agent_steps": _append_step(
+            state,
+            _step(
+                "RequestGuardrails",
+                "complete",
+                (
+                    "Request constrained to a research simulation with no "
+                    "autonomous clinical use."
+                ),
+                elapsed,
+                1.0,
+                ["n_of_1_research_policy"],
+            ),
+        ),
+        "audit_events": _append_audit(
+            state,
+            _audit(
+                "request_guardrails",
+                "pass",
+                "The request can proceed as a research simulation only.",
+                human=True,
+            ),
+        ),
+    }
+
+
+def patient_context_node(state: TherapyGraphState) -> dict[str, Any]:
+    patient, summary, elapsed = research_patient(state["patient_id"])
+    patient_context = {
+        "patient_id": patient["id"],
+        "display_name": patient["display_name"],
+        "indication": patient["indication"],
+        "cyp_profiles": patient["cyp_profiles"],
+        "clinical_history_summary": summary,
+        "safety_constraints": [
+            "Use patient phenotype as context only.",
+            "Do not infer dosing or treatment authorization.",
+        ],
+    }
+    return {
+        "patient": patient,
+        "patient_context": patient_context,
+        "agent_steps": _append_step(
+            state,
+            _step(
+                "PatientContext",
+                "complete",
+                summary,
+                elapsed,
+                0.95,
+                ["patient_profile"],
+            ),
+        ),
+        "audit_events": _append_audit(
+            state,
+            _audit(
+                "patient_context",
+                "pass",
+                f"Loaded patient context for {patient['id']}.",
+            ),
+        ),
+    }
+
+
+def evidence_rag_node(state: TherapyGraphState) -> dict[str, Any]:
+    evidence, elapsed = retrieve_therapy_evidence(
+        state["target_disease"],
+        state["patient_context"] or {},
+    )
+    confidence = {"high": 0.9, "moderate": 0.74, "low": 0.35}.get(
+        evidence["evidence_quality"],
+        0.5,
+    )
+    return {
+        "evidence_bundle": evidence,
+        "agent_steps": _append_step(
+            state,
+            _step(
+                "DiseaseTargetRAG",
+                "complete" if evidence["sources"] else "blocked",
+                evidence["target_rationale"],
+                elapsed,
+                confidence,
+                evidence["sources"],
+            ),
+        ),
+        "audit_events": _append_audit(
+            state,
+            _audit(
+                "evidence_retrieval",
+                "pass" if evidence["sources"] else "block",
+                (
+                    f"Retrieved evidence sources: {', '.join(evidence['sources'])}."
+                    if evidence["sources"]
+                    else "No source-backed therapy evidence was retrieved."
+                ),
+                human=evidence["evidence_quality"] != "high",
+            ),
+        ),
+    }
+
+
+def target_selection_node(state: TherapyGraphState) -> dict[str, Any]:
+    start = time.perf_counter()
+    evidence = state["evidence_bundle"] or {}
+    patient_context = state["patient_context"] or {}
     
-    for i in range(max_iterations):
-        # 2. Generative Agent (The Designer)
-        sequence, gen_rationale, gen_ms = design_mrna_therapy(patient, target_disease, feedback)
-        steps.append(
-            AgentStep(
-                agent="Generative",
-                status="complete",
-                summary=f"Iteration {i+1}: {gen_rationale}",
-                duration_ms=gen_ms,
-                confidence=0.85,
-                evidence_refs=["transformer_model"],
-            )
+    # Improved target selection using evidence bundle
+    target_rationale = evidence.get("target_rationale", "No evidence summary.")
+    evidence_quality = evidence.get("evidence_quality", "low")
+    sources = evidence.get("sources", [])
+    
+    # Determine confidence based on evidence quality
+    confidence = {"high": 0.92, "moderate": 0.78, "low": 0.25}.get(evidence_quality, 0.15)
+    
+    # Architecture: Refuse target selection if evidence is too weak
+    status = "complete"
+    if not sources or evidence_quality == "low":
+        status = "blocked"
+        rationale = (
+            "Target selection blocked: insufficient research evidence quality "
+            f"({evidence_quality}) to proceed with a simulated candidate design."
         )
-        
-        # 3. Validation Agent (The Safety Guardrail)
-        is_safe, toxicity, val_feedback, val_ms = validate_mrna_sequence(sequence)
-        
-        steps.append(
-            AgentStep(
-                agent="Validation",
-                status="approved" if is_safe else "blocked",
-                summary=f"Iteration {i+1}: {val_feedback}",
-                duration_ms=val_ms,
-                confidence=0.98,
-                evidence_refs=["in_silico_simulator"],
-            )
-        )
-        
-        if is_safe:
-            safe_sequence = sequence
-            final_toxicity = toxicity
-            break
-        else:
-            feedback = val_feedback
-            
-    if not safe_sequence:
-        status = "failed"
-        narrative = f"Failed to generate a safe mRNA therapy for {target_disease} after {max_iterations} iterations. Toxicity remained too high."
     else:
-        status = "success"
-        narrative = f"Successfully engineered and validated n-of-1 mRNA therapy for {target_disease}."
+        rationale = (
+            f"Selected a simulated therapeutic target for {state['target_disease']} "
+            f"based on {evidence_quality}-quality research evidence. "
+            f"Target rationale: {target_rationale}"
+        )
+
+    target_profile = {
+        "target_name": f"{state['target_disease']} research target",
+        "target_type": "pathway" if "pathway" in target_rationale.lower() else "protein",
+        "rationale": rationale,
+        "evidence_refs": sources,
+        "confidence": confidence,
+    }
+    elapsed = int((time.perf_counter() - start) * 1000)
+    return {
+        "target_profile": target_profile,
+        "agent_steps": _append_step(
+            state,
+            _step(
+                "TargetSelection",
+                status,
+                rationale,
+                elapsed,
+                confidence,
+                sources,
+            ),
+        ),
+        "audit_events": _append_audit(
+            state,
+            _audit(
+                "target_selection",
+                "pass" if status == "complete" else "block",
+                rationale,
+                human=True,
+            ),
+        ),
+    }
+
+
+def candidate_design_node(state: TherapyGraphState) -> dict[str, Any]:
+    iteration = state.get("iteration", 0) + 1
+    candidate, elapsed = design_research_mrna_candidate(
+        state.get("patient"),
+        state["target_disease"],
+        state.get("evidence_bundle") or {},
+        iteration=iteration,
+        revision_hints=state.get("revision_hints", []),
+    )
+    history = [*state.get("candidate_history", []), candidate]
+    return {
+        "iteration": iteration,
+        "active_candidate": candidate,
+        "candidate_history": history,
+        "revision_hints": [],
+        "agent_steps": _append_step(
+            state,
+            _step(
+                "CandidateDesign",
+                "complete",
+                f"Iteration {iteration}: {candidate['rationale']}",
+                elapsed,
+                0.82,
+                candidate["evidence_refs"],
+            ),
+        ),
+        "audit_events": _append_audit(
+            state,
+            _audit(
+                "candidate_design",
+                "pass",
+                f"Generated {candidate['candidate_id']} for deterministic validation.",
+                human=True,
+            ),
+        ),
+    }
+
+
+def validation_node(state: TherapyGraphState) -> dict[str, Any]:
+    candidate = state["active_candidate"] or {}
+    validation, elapsed = validate_research_mrna_candidate(
+        candidate.get("sequence", "")
+    )
+    return {
+        "validation_result": validation,
+        "agent_steps": _append_step(
+            state,
+            _step(
+                "InSilicoValidation",
+                "approved" if validation["passed"] else "blocked",
+                (
+                    "Deterministic validation passed; candidate can move to "
+                    "safety critique."
+                    if validation["passed"]
+                    else (
+                        "Validation blocked candidate: "
+                        f"{'; '.join(validation['blocked_reasons'])}"
+                    )
+                ),
+                elapsed,
+                0.9 if validation["passed"] else 0.62,
+                ["deterministic_sequence_validator"],
+            ),
+        ),
+        "audit_events": _append_audit(
+            state,
+            _audit(
+                "in_silico_validation",
+                "pass" if validation["passed"] else "block",
+                (
+                    f"Overall simulated risk score: {validation['overall_risk_score']}."
+                ),
+                human=True,
+            ),
+        ),
+    }
+
+
+def safety_critic_node(state: TherapyGraphState) -> dict[str, Any]:
+    start = time.perf_counter()
+    evidence = state.get("evidence_bundle") or {}
+    validation = state.get("validation_result") or {}
+    iteration = state.get("iteration", 0)
+    max_iterations = state.get("max_iterations", 3)
+    unresolved = list(evidence.get("known_risks", []))
+
+    if not evidence.get("sources"):
+        verdict = "failed"
+        summary = (
+            "Critic blocked the workflow because no source-backed evidence "
+            "was retrieved."
+        )
+    elif not validation.get("passed"):
+        verdict = "revise" if iteration < max_iterations else "failed"
+        summary = (
+            "Critic requested revision using validation feedback."
+            if verdict == "revise"
+            else "Critic failed the workflow after maximum validation attempts."
+        )
+    else:
+        verdict = "research_review_required"
+        summary = "Critic accepted the candidate only for human-gated research review."
+
+    critique = {
+        "verdict": verdict,
+        "summary": summary,
+        "unresolved_risks": unresolved,
+        "required_review_fields": [
+            "reviewer_id",
+            "research_rationale",
+            "evidence_review_attestation",
+            "safety_risk_acknowledgement",
+        ],
+        "confidence": 0.86 if verdict == "research_review_required" else 0.72,
+    }
+    elapsed = int((time.perf_counter() - start) * 1000)
+    return {
+        "critique": critique,
+        "agent_steps": _append_step(
+            state,
+            _step(
+                "SafetyCritic",
+                "blocked" if verdict == "failed" else "review_required",
+                summary,
+                elapsed,
+                critique["confidence"],
+                evidence.get("sources", []),
+            ),
+        ),
+        "audit_events": _append_audit(
+            state,
+            _audit(
+                "safety_critic",
+                verdict,
+                summary,
+                human=True,
+            ),
+        ),
+    }
+
+
+def revision_planner_node(state: TherapyGraphState) -> dict[str, Any]:
+    start = time.perf_counter()
+    validation = state.get("validation_result") or {}
+    hints = validation.get("revision_hints") or [
+        "Revise candidate using critic feedback."
+    ]
+    elapsed = int((time.perf_counter() - start) * 1000)
+    return {
+        "revision_hints": hints,
+        "agent_steps": _append_step(
+            state,
+            _step(
+                "RevisionPlanner",
+                "complete",
+                f"Prepared revision constraints: {'; '.join(hints)}",
+                elapsed,
+                0.8,
+                ["validation_feedback"],
+            ),
+        ),
+        "audit_events": _append_audit(
+            state,
+            _audit(
+                "revision_planning",
+                "retry",
+                f"Retrying with constraints: {'; '.join(hints)}",
+                human=True,
+            ),
+        ),
+    }
+
+
+def report_node(state: TherapyGraphState) -> dict[str, Any]:
+    start = time.perf_counter()
+    candidate = state["active_candidate"] or {}
+    evidence = state["evidence_bundle"] or {}
+    validation = state["validation_result"] or {}
+    narrative = (
+        f"Generated {candidate.get('candidate_id')} as a simulated n-of-1 mRNA "
+        f"research candidate for {state['target_disease']}. Deterministic validation "
+        f"returned risk score {validation.get('overall_risk_score')}; evidence sources "
+        f"were {', '.join(evidence.get('sources', []))}. Human research review "
+        "is required."
+    )
+    elapsed = int((time.perf_counter() - start) * 1000)
+    return {
+        "status": "research_review_required",
+        "agent_steps": _append_step(
+            state,
+            _step(
+                "HumanGate",
+                "pending",
+                "Candidate package is ready for human research review only.",
+                elapsed,
+                1.0,
+                ["human_review"],
+            ),
+        ),
+        "audit_events": _append_audit(
+            state,
+            _audit(
+                "human_gate",
+                "pending",
+                "Researcher or clinician review required before downstream use.",
+                human=True,
+            ),
+        ),
+        "clinical_narrative": narrative,
+    }
+
+
+def failure_report_node(state: TherapyGraphState) -> dict[str, Any]:
+    start = time.perf_counter()
+    critique = state.get("critique") or {}
+    validation = state.get("validation_result") or {}
+    target_profile = state.get("target_profile") or {}
+    
+    reasons = validation.get("blocked_reasons") or []
+    if not reasons and target_profile.get("confidence", 1.0) < 0.4:
+        reasons.append(target_profile.get("rationale", "Insufficient evidence."))
+    if not reasons:
+        reasons = critique.get("unresolved_risks") or [
+            "The workflow did not meet research simulation safety requirements."
+        ]
+        
+    narrative = (
+        f"N-of-1 research simulation failed for {state['target_disease']}. "
+        f"Reason: {'; '.join(reasons)} Human review is required before retrying."
+    )
+    elapsed = int((time.perf_counter() - start) * 1000)
+    return {
+        "status": "failed",
+        "agent_steps": _append_step(
+            state,
+            _step(
+                "FailureReport",
+                "blocked",
+                narrative,
+                elapsed,
+                0.88,
+                ["audit_trail"],
+            ),
+        ),
+        "audit_events": _append_audit(
+            state,
+            _audit(
+                "failure_report",
+                "block",
+                narrative,
+                human=True,
+            ),
+        ),
+        "clinical_narrative": narrative,
+    }
+
+
+def _route_after_critic(state: TherapyGraphState) -> str:
+    critique = state.get("critique") or {}
+    verdict = critique.get("verdict")
+    if verdict == "research_review_required":
+        return "report"
+    if (
+        verdict == "revise"
+        and state.get("iteration", 0) < state.get("max_iterations", 3)
+    ):
+        return "revise"
+    return "failure"
+
+
+def _route_after_target_selection(state: TherapyGraphState) -> str:
+    target_profile = state.get("target_profile") or {}
+    if target_profile.get("confidence", 0) < 0.4:
+        return "failure"
+    return "candidate"
+
+
+def _build_graph():
+    graph = StateGraph(TherapyGraphState)
+    graph.add_node("guardrails", request_guardrails_node)
+    graph.add_node("patient_context", patient_context_node)
+    graph.add_node("evidence_rag", evidence_rag_node)
+    graph.add_node("target_selection", target_selection_node)
+    graph.add_node("candidate_design", candidate_design_node)
+    graph.add_node("validation", validation_node)
+    graph.add_node("safety_critic", safety_critic_node)
+    graph.add_node("revision_planner", revision_planner_node)
+    graph.add_node("report", report_node)
+    graph.add_node("failure_report", failure_report_node)
+
+    graph.add_edge(START, "guardrails")
+    graph.add_edge("guardrails", "patient_context")
+    graph.add_edge("patient_context", "evidence_rag")
+    graph.add_edge("evidence_rag", "target_selection")
+    graph.add_conditional_edges(
+        "target_selection",
+        _route_after_target_selection,
+        {
+            "candidate": "candidate_design",
+            "failure": "failure_report",
+        },
+    )
+    graph.add_edge("candidate_design", "validation")
+    graph.add_edge("validation", "safety_critic")
+    graph.add_conditional_edges(
+        "safety_critic",
+        _route_after_critic,
+        {
+            "report": "report",
+            "revise": "revision_planner",
+            "failure": "failure_report",
+        },
+    )
+    graph.add_edge("revision_planner", "candidate_design")
+    graph.add_edge("report", END)
+    graph.add_edge("failure_report", END)
+    return graph.compile()
+
+
+THERAPY_GRAPH = _build_graph()
+
+
+def _logic_tree(state: TherapyGraphState) -> dict[str, Any]:
+    evidence = state.get("evidence_bundle") or {}
+    validation = state.get("validation_result") or {}
+    critique = state.get("critique") or {}
+    return {
+        "node": "N-of-1 Research Simulation",
+        "children": [
+            {
+                "node": "Evidence RAG",
+                "detail": evidence.get("target_rationale", "No evidence summary."),
+                "sources": evidence.get("sources", []),
+            },
+            {
+                "node": "Candidate Design",
+                "detail": (state.get("active_candidate") or {}).get(
+                    "candidate_id",
+                    "No candidate.",
+                ),
+                "iterations": state.get("iteration", 0),
+            },
+            {
+                "node": "Validation",
+                "detail": f"Risk score {validation.get('overall_risk_score')}",
+                "passed": validation.get("passed", False),
+            },
+            {
+                "node": "Critic",
+                "detail": critique.get("summary", "No critique."),
+                "verdict": critique.get("verdict"),
+            },
+            {
+                "node": "Human Gate",
+                "detail": (
+                    "Researcher or clinician review required before downstream use."
+                ),
+                "flag": True,
+            },
+        ],
+    }
+
+
+def orchestrate_therapy_generation(
+    patient_id: str,
+    target_disease: str,
+    max_iterations: int = 3,
+) -> TherapyGenerationResponse:
+    initial_state: TherapyGraphState = {
+        "therapy_request_id": str(uuid.uuid4()),
+        "patient_id": patient_id.upper(),
+        "target_disease": target_disease,
+        "max_iterations": max(1, min(max_iterations, 5)),
+        "patient": None,
+        "patient_context": None,
+        "evidence_bundle": None,
+        "target_profile": None,
+        "candidate_history": [],
+        "active_candidate": None,
+        "validation_result": None,
+        "critique": None,
+        "revision_hints": [],
+        "iteration": 0,
+        "status": "running",
+        "agent_steps": [],
+        "audit_events": [],
+        "safety_notes": [],
+    }
+    final_state = THERAPY_GRAPH.invoke(initial_state)
+    candidate = final_state.get("active_candidate")
+    evidence = final_state.get("evidence_bundle")
+    validation = final_state.get("validation_result")
+    candidate_history = [
+        TherapyCandidate(**item)
+        for item in final_state.get("candidate_history", [])
+    ]
+    final_candidate = TherapyCandidate(**candidate) if candidate else None
+    validation_result = TherapyValidationResult(**validation) if validation else None
+    evidence_bundle = TherapyEvidenceBundle(**evidence) if evidence else None
+    human_gate = HumanGate(
+        required=True,
+        status="pending",
+        reason="Researcher or clinician review required before downstream use.",
+        required_fields=[
+            "reviewer_id",
+            "research_rationale",
+            "evidence_review_attestation",
+            "safety_risk_acknowledgement",
+        ],
+    )
 
     return TherapyGenerationResponse(
-        status=status,
+        status=final_state.get("status", "failed"),
         patient_id=patient_id.upper(),
         target_disease=target_disease,
-        mrna_sequence=safe_sequence,
-        toxicity_score=final_toxicity,
-        iterations=i + 1,
-        agent_steps=steps,
-        clinical_narrative=narrative
+        mrna_sequence=candidate.get("sequence") if candidate else None,
+        toxicity_score=validation.get("overall_risk_score") if validation else None,
+        iterations=final_state.get("iteration", 0),
+        agent_steps=final_state.get("agent_steps", []),
+        clinical_narrative=final_state.get(
+            "clinical_narrative",
+            "N-of-1 research simulation completed with no narrative.",
+        ),
+        therapy_request_id=final_state.get("therapy_request_id"),
+        candidate_id=candidate.get("candidate_id") if candidate else None,
+        final_candidate=final_candidate,
+        candidate_history=candidate_history,
+        validation_result=validation_result,
+        evidence_bundle=evidence_bundle,
+        evidence_sources=evidence_bundle.sources if evidence_bundle else [],
+        safety_notes=final_state.get("safety_notes", []),
+        audit_trail=final_state.get("audit_events", []),
+        logic_tree=_logic_tree(final_state),
+        human_gate=human_gate,
+    )
+```
+
+## `therapy_rag.py`
+
+```python
+from __future__ import annotations
+
+import re
+import time
+from pathlib import Path
+from typing import Any
+
+KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "knowledge"
+
+CORE_TERMS = {
+    "mrna",
+    "therapy",
+    "target",
+    "candidate",
+    "sequence",
+    "validation",
+    "safety",
+    "human",
+    "review",
+    "research",
+    "simulation",
+}
+
+
+def _tokenize(text: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-z0-9]+", text.lower())
+        if len(token) > 2
+    }
+
+
+def _load_chunks() -> list[dict[str, Any]]:
+    chunks: list[dict[str, Any]] = []
+    for path in sorted(KNOWLEDGE_DIR.glob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        parts = [
+            part.strip()
+            for part in re.split(r"\n(?=## |\# )", text)
+            if part.strip()
+        ]
+        for index, part in enumerate(parts):
+            chunks.append(
+                {
+                    "source": path.name,
+                    "chunk_id": f"{path.name}:{index + 1}",
+                    "text": part,
+                }
+            )
+    return chunks
+
+
+def _score_chunk(chunk: dict[str, Any], query_terms: set[str]) -> int:
+    chunk_terms = _tokenize(chunk["text"])
+    source_terms = _tokenize(chunk["source"].replace("_", " "))
+    overlap = len(query_terms & chunk_terms)
+    core_overlap = len(CORE_TERMS & chunk_terms)
+    source_overlap = len(query_terms & source_terms)
+    return (overlap * 3) + core_overlap + source_overlap
+
+
+def _snippet(text: str, limit: int = 360) -> str:
+    clean = " ".join(text.split())
+    if len(clean) <= limit:
+        return clean
+    return clean[: limit - 3].rstrip() + "..."
+
+
+def retrieve_therapy_evidence(
+    target_disease: str,
+    patient_context: dict[str, Any],
+) -> tuple[dict[str, Any], int]:
+    """Retrieve source-grounded context for the n-of-1 research workflow."""
+    start = time.perf_counter()
+    # Exclude very common terms from the "must-match" disease set
+    stop_terms = {"disease", "research", "simulation", "therapy", "target", "patient", "clinical"}
+    disease_terms = _tokenize(target_disease) - stop_terms
+    
+    phenotype_terms = {
+        profile.get("phenotype", "")
+        for profile in patient_context.get("cyp_profiles", [])
+        if isinstance(profile, dict)
+    }
+    general_terms = _tokenize("mRNA therapy target validation safety human review research simulation")
+    query_terms = _tokenize(target_disease) | _tokenize(patient_context.get("indication", "")) | _tokenize(" ".join(phenotype_terms)) | general_terms
+
+    chunks = _load_chunks()
+    ranked = []
+    for chunk in chunks:
+        score = _score_chunk(chunk, query_terms)
+        # Bonus for specific disease-name overlap
+        disease_overlap = len(disease_terms & _tokenize(chunk["text"])) if disease_terms else 0
+        score += (disease_overlap * 20)
+        if score > 0:
+            ranked.append((score, chunk, disease_overlap))
+
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    selected = ranked[:5]
+
+    if not selected:
+        return _low_quality_response(start)
+
+    sources = sorted({chunk["source"] for _, chunk, _ in selected})
+    total_disease_overlap = sum(d for _, _, d in selected)
+    
+    policy_present = any("n_of_1" in source for source in sources)
+    
+    # Logic: If a specific disease term was provided, it MUST be found in sources
+    # to be considered moderate/high quality.
+    if disease_terms and total_disease_overlap < 1:
+        return _low_quality_response(start)
+    
+    if total_disease_overlap >= 3:
+        evidence_quality = "high" if len(sources) >= 2 and policy_present else "moderate"
+    elif total_disease_overlap >= 1 or not disease_terms:
+        evidence_quality = "moderate"
+    else:
+        return _low_quality_response(start)
+
+    elapsed = int((time.perf_counter() - start) * 1000)
+    return (
+        {
+            "sources": sources,
+            "target_rationale": (
+                f"Retrieved {len(selected)} source chunks for {target_disease}. "
+                "The evidence supports a simulated research candidate and "
+                "requires human review."
+            ),
+            "known_risks": [
+                "The candidate is not clinically validated.",
+                "Sequence validation is deterministic but still a simulation.",
+                "Disease-specific target evidence may be incomplete.",
+            ],
+            "open_questions": [
+                "Is the target disease mechanism sufficiently documented?",
+                "Does the reviewer accept the validation thresholds?",
+            ],
+            "evidence_quality": evidence_quality,
+            "source_snippets": [
+                {
+                    "source": chunk["source"],
+                    "chunk_id": chunk["chunk_id"],
+                    "score": score,
+                    "snippet": _snippet(chunk["text"]),
+                }
+                for score, chunk, _ in selected
+            ],
+        },
+        elapsed,
+    )
+
+
+def _low_quality_response(start_time: float) -> tuple[dict[str, Any], int]:
+    elapsed = int((time.perf_counter() - start_time) * 1000)
+    return (
+        {
+            "sources": [],
+            "target_rationale": (
+                "No disease-specific evidence was retrieved. The system cannot "
+                "reliably identify a therapeutic target for this indication."
+            ),
+            "known_risks": ["Insufficient source grounding for target selection."],
+            "open_questions": ["Which reviewed disease mechanism supports this target?"],
+            "evidence_quality": "low",
+            "source_snippets": [],
+        },
+        elapsed,
     )
 ```
 
@@ -1775,14 +2745,17 @@ def orchestrate_therapy_generation(patient_id: str, target_disease: str) -> Ther
 from __future__ import annotations
 
 import os
-import time
 import random
+import time
+from typing import Any
 
 # Use a frozenset for O(1) membership testing and clear semantic intent
 SAFE_DRUGS = frozenset({
     "Duloxetine", "Pregabalin", "Prasugrel", "Ticagrelor",
     "Acetaminophen (scheduled)", "Sertraline", "Bupropion", "Ibuprofen"
 })
+RNA_ALPHABET = frozenset({"A", "U", "G", "C"})
+STOP_CODONS = frozenset({"UAA", "UAG", "UGA"})
 
 def validate_drug_safety(drug: str) -> tuple[bool, float, str, int]:
     """
@@ -1796,10 +2769,16 @@ def validate_drug_safety(drug: str) -> tuple[bool, float, str, int]:
     
     if toxicity_score > 0.5:
         is_safe = False
-        feedback = f"{drug} failed safety validation (mock toxicity score: {toxicity_score:.2f})."
+        feedback = (
+            f"{drug} failed safety validation "
+            f"(mock toxicity score: {toxicity_score:.2f})."
+        )
     else:
         is_safe = True
-        feedback = f"{drug} passed safety validation. Toxicity score: {toxicity_score:.2f}."
+        feedback = (
+            f"{drug} passed safety validation. "
+            f"Toxicity score: {toxicity_score:.2f}."
+        )
 
     return is_safe, toxicity_score, feedback, duration_ms
 
@@ -1827,10 +2806,212 @@ def validate_mrna_sequence(sequence: str) -> tuple[bool, float, str, int]:
     # Set threshold at 0.5 to force occasional loops between generative and validation
     if toxicity_score > 0.5:
         is_safe = False
-        feedback = f"Sequence failed stability test with toxicity score {toxicity_score:.2f}. High probability of off-target binding. Redesign and optimize for lower free energy."
+        feedback = (
+            f"Sequence failed stability test with toxicity score {toxicity_score:.2f}. "
+            "High probability of off-target binding. Redesign and optimize for lower "
+            "free energy."
+        )
     else:
         is_safe = True
-        feedback = f"Sequence passed in-silico safety validation. Toxicity score: {toxicity_score:.2f}. Folding structure stable."
+        feedback = (
+            "Sequence passed in-silico safety validation. "
+            f"Toxicity score: {toxicity_score:.2f}. Folding structure stable."
+        )
 
     return is_safe, toxicity_score, feedback, duration_ms
+
+
+def _codons(sequence: str) -> list[str]:
+    return [sequence[index:index + 3] for index in range(0, len(sequence), 3)]
+
+
+def _gc_content(sequence: str) -> float:
+    if not sequence:
+        return 0.0
+    return (sequence.count("G") + sequence.count("C")) / len(sequence)
+
+
+def _repeat_risk(codons: list[str]) -> float:
+    if not codons:
+        return 1.0
+    longest = 1
+    current = 1
+    for previous, current_codon in zip(codons, codons[1:], strict=False):
+        if previous == current_codon:
+            current += 1
+            longest = max(longest, current)
+        else:
+            current = 1
+    return longest / len(codons)
+
+
+def _check(
+    name: str,
+    passed: bool,
+    score: float,
+    detail: str,
+    severity: str = "info",
+) -> dict[str, Any]:
+    return {
+        "name": name,
+        "passed": passed,
+        "score": max(0.0, min(1.0, score)),
+        "detail": detail,
+        "severity": severity,
+    }
+
+
+from agents.bioinformatics_adapter import (
+    simulate_folding_energy,
+    simulate_homology_search,
+    simulate_immunogenicity_score,
+)
+
+
+def validate_research_mrna_candidate(sequence: str) -> tuple[dict[str, Any], int]:
+    """Run deterministic checks and simulated bioinformatics for the n-of-1 research simulation."""
+    start = time.perf_counter()
+    normalized = sequence.upper().replace(" ", "").replace("\n", "")
+    
+    # Phase 4: Simulated Bioinformatics Integrations
+    mfe = simulate_folding_energy(normalized)
+    homology = simulate_homology_search(normalized)
+    immunogenicity = simulate_immunogenicity_score(normalized)
+    
+    codons = _codons(normalized) if len(normalized) % 3 == 0 else []
+    coding_codons = codons[1:-1] if len(codons) >= 2 else []
+    internal_stop_count = sum(1 for codon in coding_codons if codon in STOP_CODONS)
+    gc = _gc_content(normalized)
+    repeat_risk = _repeat_risk(coding_codons)
+
+    checks = [
+        _check(
+            "rna_alphabet",
+            set(normalized).issubset(RNA_ALPHABET),
+            1.0 if set(normalized).issubset(RNA_ALPHABET) else 0.0,
+            "Sequence uses only A, U, G, and C.",
+            "critical",
+        ),
+        _check(
+            "reading_frame",
+            len(normalized) >= 30 and len(normalized) % 3 == 0,
+            1.0 if len(normalized) >= 30 and len(normalized) % 3 == 0 else 0.0,
+            f"Sequence length is {len(normalized)} bases.",
+            "critical",
+        ),
+        _check(
+            "folding_stability",
+            mfe <= -25.0,
+            1.0 if mfe <= -25.0 else 0.5,
+            f"Predicted MFE is {mfe} kcal/mol (threshold: -25.0).",
+            "warning",
+        ),
+        _check(
+            "homology_off_target",
+            not homology,
+            1.0 if not homology else 0.4,
+            f"Detected {len(homology)} potential off-target homologies." if homology else "No high-identity homologies detected.",
+            "warning",
+        ),
+        _check(
+            "immunogenicity_risk",
+            immunogenicity <= 0.4,
+            1.0 - immunogenicity,
+            f"Predicted immunogenicity score is {immunogenicity:.2f}.",
+            "warning",
+        ),
+        _check(
+            "start_codon",
+            normalized.startswith("AUG"),
+            1.0 if normalized.startswith("AUG") else 0.0,
+            "Sequence starts with AUG.",
+            "critical",
+        ),
+        _check(
+            "terminal_stop",
+            bool(codons and codons[-1] in STOP_CODONS),
+            1.0 if codons and codons[-1] in STOP_CODONS else 0.0,
+            "Sequence ends with a terminal stop codon.",
+            "critical",
+        ),
+        _check(
+            "internal_stop_codons",
+            internal_stop_count == 0,
+            1.0 if internal_stop_count == 0 else 0.0,
+            f"Detected {internal_stop_count} internal stop codons.",
+            "critical",
+        ),
+        _check(
+            "gc_content",
+            0.35 <= gc <= 0.70,
+            1.0 - min(abs(gc - 0.52), 0.52),
+            f"GC content is {gc:.2f}; accepted demo range is 0.35-0.70.",
+            "warning",
+        ),
+        _check(
+            "repeat_motif_risk",
+            repeat_risk <= 0.30,
+            1.0 - repeat_risk,
+            f"Longest repeated codon run ratio is {repeat_risk:.2f}.",
+            "warning",
+        ),
+    ]
+
+    blocked_reasons = [
+        check["detail"]
+        for check in checks
+        if not check["passed"] and check["severity"] == "critical"
+    ]
+    # Block on specific warnings for the research simulation
+    if not checks[2]["passed"]: # folding
+        blocked_reasons.append(checks[2]["detail"])
+    if not checks[8]["passed"]: # gc
+        blocked_reasons.append(checks[8]["detail"])
+
+    revision_hints: list[str] = []
+    if not checks[0]["passed"]:
+        revision_hints.append("Use only RNA bases A, U, G, and C.")
+    if not checks[1]["passed"]:
+        revision_hints.append("Keep the sequence in-frame and at least 30 bases long.")
+    if mfe > -25.0:
+        revision_hints.append("Optimize sequence for higher folding stability (lower MFE).")
+    if homology:
+        revision_hints.append("Modify sequence to avoid known off-target homologies.")
+    if immunogenicity > 0.4:
+        revision_hints.append("Reduce immunogenic motif density.")
+    if not checks[5]["passed"]:
+        revision_hints.append("Add an AUG start codon.")
+    if not checks[6]["passed"]:
+        revision_hints.append("Add a valid terminal stop codon.")
+    if internal_stop_count:
+        revision_hints.append("Remove internal stop codons from the coding region.")
+    if gc > 0.70:
+        revision_hints.append("Reduce GC content.")
+    elif gc < 0.35:
+        revision_hints.append("Increase GC content.")
+    if repeat_risk > 0.30:
+        revision_hints.append("Diversify repeated codons.")
+
+    failure_weight = sum(0.12 for check in checks if not check["passed"])
+    risk_score = min(
+        1.0,
+        0.10
+        + failure_weight
+        + (repeat_risk * 0.15)
+        + (immunogenicity * 0.20)
+        + min(abs(gc - 0.52), 0.25),
+    )
+    passed = not blocked_reasons and risk_score <= 0.50
+    elapsed = int((time.perf_counter() - start) * 1000)
+    return (
+        {
+            "passed": passed,
+            "overall_risk_score": round(risk_score, 2),
+            "checks": checks,
+            "blocked_reasons": blocked_reasons,
+            "revision_hints": revision_hints,
+            "validator_version": "1.4.2-research",
+        },
+        elapsed,
+    )
 ```

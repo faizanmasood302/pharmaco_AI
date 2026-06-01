@@ -1,0 +1,18 @@
+services:
+  agent-server:
+    build: ./agent-server
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./agent-server/.env
+    volumes:
+      - ./agent-server/vault:/app/vault
+
+  web-frontend:
+    build: ./web
+    ports:
+      - "3000:3000"
+    environment:
+      - AGENT_SERVER_URL=http://agent-server:8000
+    depends_on:
+      - agent-server
