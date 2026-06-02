@@ -38,6 +38,19 @@ The Pharmacogenomic Harness is a dual-pipeline clinical AI system that provides 
 
 ---
 
+## 🤖 Model Selection Strategy
+
+The harness is model-agnostic. Choose your "Agent Brain" based on your current phase:
+
+| Model / Provider | Best Used For | Why? |
+| :--- | :--- | :--- |
+| **Groq (Llama 3)** | UI Prototyping & Demos | Extremely low latency (<2s for full chains). Keeps dev cycles fast. |
+| **GPT-4o (OpenAI)** | Production Standard Care | Rigid JSON Schema adherence ensures dashboards never crash on formatting. |
+| **Claude 3.5 Sonnet** | N-of-1 Experimental Research | Gold standard for complex logic and dense medical/scientific literature. |
+| **MedLM (Google)** | Clinical Deployment | Native medical terminology support and HIPAA-compliant enterprise integration. |
+
+---
+
 ## 🏛 Architecture
 
 ![System Pipeline](v4_dual_pipeline_architecture.svg)
