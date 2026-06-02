@@ -36,6 +36,17 @@ In the agentic architecture, tools are functions the agents can call. Google Clo
 *   **Current State:** The deterministic reasoning fallback relies on a hardcoded demo formulary of ~9 medications.
 *   **Future State:** Integrate the system with a comprehensive, live pharmacological database like **RxNorm** or **First Databank (FDB)** to handle real-world polypharmacy and multi-drug interaction checks.
 
+### 5. Multi-Model Strategy: Groq vs. Claude vs. GPT
+
+The architecture is designed to be model-agnostic. While currently optimized for Groq (Llama 3), switching to other frontier models provides specific trade-offs:
+
+| Model / Provider | Primary Benefit | Impact on System |
+| :--- | :--- | :--- |
+| **Groq (Llama 3)** | **Extreme Latency** | Ideal for high-speed agentic chains. Lowers cost but may have slightly higher hallucination rates in complex clinical logic. |
+| **GPT-4o (OpenAI)** | **Structured Reliability** | Supports "Structured Outputs" to guarantee valid JSON formatting for the clinical dashboard 100% of the time. |
+| **Claude 3.5 (Anthropic)** | **Nuance & Comprehension** | The current gold standard for complex medical reasoning and reading massive patient histories (large context window). |
+| **Gemini (Google)** | **Multimodality** | Required for future versions that need to "see" medical imaging or parse scanned lab results natively. |
+
 ### Summary
 
 The transition to Google's Healthcare suite will not break the existing multi-agent architecture; it will act as a massive capability injection. The orchestration logic remains intact, while the "brains" become medically certified and the "tools" become enterprise-grade, paving the way for eventual clinical validation and use.

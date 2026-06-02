@@ -80,3 +80,11 @@ def mock_poor_metabolizer_patient() -> PatientRecord:
             }
         ]
     }
+
+@pytest.fixture
+def eval_payload():
+    """Fixture providing a standard evaluation payload for tests."""
+    return {
+        "patient_id": "PGX-001",
+        "medication": "Codeine"
+    }

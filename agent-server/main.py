@@ -315,7 +315,7 @@ async def login(login_request: LoginRequest, request: Request):
 @app.post("/api/evaluate-prescription", response_model=EvaluationResponse)
 @limiter.limit("10/minute")
 async def evaluate_prescription(
-    eval_request: PrescriptionRequest,
+    eval_payload: PrescriptionRequest,
     request: Request,
     user_id: str = Depends(verify_token)
 ):
@@ -530,15 +530,15 @@ async def review_therapy_decision(
 @app.post("/api/generate-therapy", response_model=TherapyGenerationResponse)
 @limiter.limit("5/minute")
 async def generate_therapy_endpoint(
-    eval_request: TherapyGenerationRequest,
     request: Request,
+    eval_payload: TherapyGenerationRequest,
     user_id: str = Depends(verify_token)
 ):
     logger.info(
         "Initiating therapy generation", 
         extra={
             "patient_id": eval_payload.patient_id, 
-            "target_disease": eval_request.target_disease,
+            "target_disease": eval_payload.target_disease,
             "user_id": user_id
         }
     )
@@ -546,8 +546,8 @@ async def generate_therapy_endpoint(
     patient_id_normalized = eval_payload.patient_id.upper()
     result = orchestrate_therapy_generation(
         patient_id_normalized,
-        eval_request.target_disease,
-        eval_request.max_iterations,
+        eval_payload.target_disease,
+        eval_payload.max_iterations,
     )
     result.therapy_request_id = save_therapy_generation(result.model_dump())
     
