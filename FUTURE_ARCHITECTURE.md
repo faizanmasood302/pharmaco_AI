@@ -50,3 +50,26 @@ The architecture is designed to be model-agnostic. While currently optimized for
 ### Summary
 
 The transition to Google's Healthcare suite will not break the existing multi-agent architecture; it will act as a massive capability injection. The orchestration logic remains intact, while the "brains" become medically certified and the "tools" become enterprise-grade, paving the way for eventual clinical validation and use.
+
+---
+
+# Upcoming Sprint: Clinical Depth & Agent Observability
+
+Following the completion of the foundational infrastructure, the next development phase (Sprint 2) focuses on transforming the technical demo into a robust clinical instrument.
+
+### Track 1: Expanding the Medical Knowledge Base (Depth)
+*   **Goal:** Move from 9 demo drugs to 50+ high-impact medications.
+*   **Focus:** Ingest CPIC guidelines for SSRIs (Antidepressants) and Statins (Cholesterol).
+*   **Implementation:** Update `agent-server/pgx/rules.py` with deterministic logic for these new classes to cover the most common primary care prescriptions.
+
+### Track 2: The "Reasoning Trace" UI (Observability)
+*   **Goal:** Provide transparency into the AI's internal "argument" process.
+*   **Implementation:** Add a **"Review Flow"** tab to the `EvaluationPanel.tsx` that displays the internal dialogue between the Reasoning Agent and the Critic Agent. This builds clinical trust by eliminating "Black Box" AI.
+
+### Track 3: Interactive Adherence Lab (Patient Engagement)
+*   **Goal:** Transition from static monitoring to an active patient management platform.
+*   **Implementation:** Complete the `process_check_in` backend logic and build a **"Patient Simulator"** in the web UI. This allows for testing dose misses or side-effect alerts in real-time.
+
+### Track 4: Multi-Model Evaluation (Performance)
+*   **Goal:** Quantify the speed vs. safety trade-offs of different "Brains."
+*   **Implementation:** Implement a backend toggle between **Llama 3 (Groq)** and **GPT-4o (OpenAI)** and benchmark accuracy against the `pgx/rules.py` deterministic baseline.
