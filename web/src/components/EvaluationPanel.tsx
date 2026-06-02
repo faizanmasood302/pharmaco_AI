@@ -406,8 +406,8 @@ export default function EvaluationPanel({ result, onNoteGenerated, onReviewDecis
           <div className="rounded-lg border border-outline-variant/30 bg-surface-container-low/20 p-5 relative">
              <span className="absolute -top-2 -right-2 bg-surface-container-low text-[8px] font-bold text-on-surface-variant uppercase tracking-widest px-2 py-0.5 rounded border border-outline-variant/30">AI-Generated Advisory</span>
              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary mb-3 mt-2">
-                <span className="material-symbols-outlined text-sm">menu_book</span>
-                Clinical Evidence Citation (RAG)
+               <Icon name="menu_book" className="w-4 h-4" />
+               Clinical Evidence Citation (RAG)
              </div>
              <div className="text-xs text-on-surface-variant leading-relaxed font-medium bg-white/50 p-4 rounded border border-outline-variant/10">
                 {result.clinical_evidence}

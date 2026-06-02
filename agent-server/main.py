@@ -16,7 +16,13 @@ from slowapi.errors import RateLimitExceeded
 from logging_config import setup_logging, request_id_var
 
 # Initialize rate limiter
-limiter = Limiter(key_func=get_remote_address)
+def get_user_or_ip(request: Request):
+    auth = request.headers.get("Authorization")
+    if auth and auth.startswith("Bearer "):
+        return auth.split(" ")[1]
+    return get_remote_address(request)
+
+limiter = Limiter(key_func=get_user_or_ip)
 
 # Initialize production structured logging
 setup_logging()
@@ -131,7 +137,8 @@ async def add_correlation_id(request: Request, call_next):
 
 
 @app.get("/")
-async def root():
+@limiter.limit("20/minute")
+async def root(request: Request):
     return {
         "message": "Pharmacogenomic Agent Server is running",
         "supabase_configured": is_configured(),
@@ -151,7 +158,8 @@ async def root():
 
 
 @app.get("/api/medications")
-async def list_medications_endpoint(user_id: str = Depends(verify_token)):
+@limiter.limit("20/minute")
+async def list_medications_endpoint(request: Request, user_id: str = Depends(verify_token)):
     meds = list_medications()
     if not meds:
         # Fallback to demo defaults if DB is empty or unreachable
@@ -175,15 +183,17 @@ class ClinicalReportRequest(BaseModel):
 
 
 @app.post("/api/clinical-reports")
+@limiter.limit("20/minute")
 async def create_clinical_report(
-    request: ClinicalReportRequest,
+    request: Request,
+    payload: ClinicalReportRequest,
     user_id: str = Depends(verify_token),
 ):
     try:
         report_id = save_clinical_report(
-            request.evaluation_id,
-            request.patient_id,
-            request.content,
+            payload.evaluation_id,
+            payload.patient_id,
+            payload.content,
             clinician_id=user_id,
         )
         if not report_id:
@@ -194,10 +204,10 @@ async def create_clinical_report(
         log_audit(
             user_id=user_id,
             action="SAVE_CLINICAL_REPORT",
-            patient_id=request.patient_id,
+            patient_id=payload.patient_id,
             resource_id=report_id,
-            details={"evaluation_id": request.evaluation_id},
-            request=None,
+            details={"evaluation_id": payload.evaluation_id},
+            request=request,
         )
 
         return {"report_id": report_id, "status": "saved"}
@@ -207,7 +217,9 @@ async def create_clinical_report(
 
 
 @app.get("/api/patients/{patient_id}/reports")
+@limiter.limit("20/minute")
 async def list_patient_reports_endpoint(
+    request: Request,
     patient_id: str,
     user_id: str = Depends(verify_token),
 ):
@@ -216,7 +228,8 @@ async def list_patient_reports_endpoint(
 
 
 @app.get("/api/patients")
-async def list_patients(user_id: str = Depends(verify_token)):
+@limiter.limit("20/minute")
+async def list_patients(request: Request, user_id: str = Depends(verify_token)):
     patients = list_all_patients()
     return {
         "patients": [
@@ -256,12 +269,14 @@ async def get_evaluations(
 
 
 @app.post("/api/ingest-fhir")
+@limiter.limit("10/minute")
 async def ingest_fhir(
-    request: FhirIngestRequest,
+    request: Request,
+    payload: FhirIngestRequest,
     user_id: str = Depends(verify_token)
 ):
     try:
-        patient = parse_fhir_bundle(request.bundle)
+        patient = parse_fhir_bundle(payload.bundle)
         if not patient["id"].startswith("PGX"):
             patient["id"] = f"PGX-{patient['id']}"[:20]
         upserted = upsert_patient(patient)
@@ -307,16 +322,16 @@ async def evaluate_prescription(
     logger.info(
         "Initiating prescription evaluation", 
         extra={
-            "patient_id": eval_request.patient_id, 
-            "medication": eval_request.medication,
+            "patient_id": eval_payload.patient_id, 
+            "medication": eval_payload.medication,
             "user_id": user_id
         }
     )
     
     # Normalized ID casing for audit - Fix M9
-    patient_id_normalized = eval_request.patient_id.upper()
+    patient_id_normalized = eval_payload.patient_id.upper()
     
-    result = orchestrate(patient_id_normalized, eval_request.medication)
+    result = orchestrate(patient_id_normalized, eval_payload.medication)
     
     # Log the access to the patient's data
     from audit import log_audit
@@ -326,7 +341,7 @@ async def evaluate_prescription(
         patient_id=patient_id_normalized,
         resource_id=result.medication,
         details={
-            "medication": eval_request.medication,
+            "medication": eval_payload.medication,
             "flagged": result.flagged,
             "risk_level": result.risk_level
         },
@@ -337,7 +352,7 @@ async def evaluate_prescription(
         "Evaluation complete", 
         extra={
             "patient_id": patient_id_normalized,
-            "medication": eval_request.medication,
+            "medication": eval_payload.medication,
             "flagged": result.flagged,
             "risk_level": result.risk_level,
             "user_id": user_id
@@ -347,7 +362,9 @@ async def evaluate_prescription(
 
 
 @app.post("/api/clinical-note")
+@limiter.limit("10/minute")
 async def create_note(
+    request: Request,
     result: EvaluationResponse,
     _user_id: str = Depends(verify_token),
 ):
@@ -367,12 +384,14 @@ async def create_note(
 
 
 @app.post("/api/adherence/plans")
+@limiter.limit("20/minute")
 async def create_adherence_plan(
-    request: AdherencePlanRequest,
+    request: Request,
+    payload: AdherencePlanRequest,
     _user_id: str = Depends(verify_token),
 ):
     try:
-        plan = start_adherence_monitoring(request.patient_id, request.medication)
+        plan = start_adherence_monitoring(payload.patient_id, payload.medication)
         if plan.get("status") == "error":
             raise HTTPException(
                 status_code=500,
@@ -393,7 +412,7 @@ async def submit_check_in(
 ):
     try:
         # Fixed: Corrected parameter names to match process_check_in signature
-        result = process_check_in(check_in_id, request.response, request.side_effect_reported)
+        result = process_check_in(check_in_id, payload.response, payload.side_effect_reported)
         if result.get("status") == "error":
             raise HTTPException(
                 status_code=404,
@@ -408,12 +427,14 @@ async def submit_check_in(
 
 
 @app.post("/api/evaluations/{evaluation_id}/decision")
+@limiter.limit("20/minute")
 async def review_evaluation_decision(
+    request: Request,
     evaluation_id: str,
-    request: ReviewDecisionRequest,
+    payload: ReviewDecisionRequest,
     user_id: str = Depends(verify_token),
 ):
-    decision = request.decision.lower().strip()
+    decision = payload.decision.lower().strip()
     logger.info(f"Clinician decision received: {decision} for {evaluation_id}")
     if decision not in {"approved", "rejected"}:
         raise HTTPException(status_code=400, detail="decision must be 'approved' or 'rejected'")
@@ -422,8 +443,8 @@ async def review_evaluation_decision(
         updated = update_evaluation_decision(
             evaluation_id,
             decision,
-            reviewer=request.reviewer or user_id,
-            rationale=request.rationale,
+            reviewer=payload.reviewer or user_id,
+            rationale=payload.rationale,
         )
         if not updated:
             logger.warning(f"Evaluation {evaluation_id} not found for decision update")
@@ -437,10 +458,10 @@ async def review_evaluation_decision(
             resource_id=evaluation_id,
             details={
                 "decision": decision,
-                "reviewer": request.reviewer or user_id,
-                "rationale": request.rationale,
+                "reviewer": payload.reviewer or user_id,
+                "rationale": payload.rationale,
             },
-            request=None,
+            request=request,
         )
 
         # Return the updated result_json for frontend state sync
@@ -459,12 +480,14 @@ async def review_evaluation_decision(
 
 
 @app.post("/api/therapy-requests/{therapy_request_id}/decision")
+@limiter.limit("20/minute")
 async def review_therapy_decision(
+    request: Request,
     therapy_request_id: str,
-    request: ReviewDecisionRequest,
+    payload: ReviewDecisionRequest,
     user_id: str = Depends(verify_token),
 ):
-    decision = request.decision.lower().strip()
+    decision = payload.decision.lower().strip()
     if decision not in {"approved", "rejected"}:
         raise HTTPException(status_code=400, detail="decision must be 'approved' or 'rejected'")
 
@@ -472,8 +495,8 @@ async def review_therapy_decision(
         updated = update_therapy_decision(
             therapy_request_id,
             decision,
-            reviewer=request.reviewer or user_id,
-            rationale=request.rationale,
+            reviewer=payload.reviewer or user_id,
+            rationale=payload.rationale,
         )
         if not updated:
             raise HTTPException(status_code=404, detail="Therapy request not found")
@@ -486,10 +509,10 @@ async def review_therapy_decision(
             resource_id=therapy_request_id,
             details={
                 "decision": decision,
-                "reviewer": request.reviewer or user_id,
-                "rationale": request.rationale,
+                "reviewer": payload.reviewer or user_id,
+                "rationale": payload.rationale,
             },
-            request=None,
+            request=request,
         )
 
         return {
@@ -514,13 +537,13 @@ async def generate_therapy_endpoint(
     logger.info(
         "Initiating therapy generation", 
         extra={
-            "patient_id": eval_request.patient_id, 
+            "patient_id": eval_payload.patient_id, 
             "target_disease": eval_request.target_disease,
             "user_id": user_id
         }
     )
     
-    patient_id_normalized = eval_request.patient_id.upper()
+    patient_id_normalized = eval_payload.patient_id.upper()
     result = orchestrate_therapy_generation(
         patient_id_normalized,
         eval_request.target_disease,

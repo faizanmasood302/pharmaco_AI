@@ -11,7 +11,7 @@ import {
   BookOpen, 
   Bell, 
   Printer, 
-  Activity, 
+  Loader2, 
   AlertTriangle, 
   Search, 
   ArrowRightLeft, 
@@ -25,6 +25,11 @@ import {
   User,
   Shield,
   Check,
+  ChevronDown,
+  LineChart,
+  Lightbulb,
+  ClipboardList,
+  Pill,
   type LucideProps 
 } from 'lucide-react';
 
@@ -41,7 +46,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   menu_book: BookOpen,
   notifications: Bell,
   print: Printer,
-  progress_activity: Activity,
+  progress_activity: Loader2,
   report_problem: AlertTriangle,
   search: Search,
   swap_horiz: ArrowRightLeft,
@@ -56,6 +61,11 @@ const ICON_MAP: Record<string, React.ElementType> = {
   person: User,
   security: Shield,
   check: Check,
+  expand_more: ChevronDown,
+  analytics: LineChart,
+  insights: Lightbulb,
+  assignment_ind: ClipboardList,
+  medication: Pill,
 };
 
 type IconProps = LucideProps & {
