@@ -8,6 +8,7 @@ def test_memory_agent_summarizes_empty_history():
     assert "First recorded" in summary
     assert conf == 1.0
 
+
 def test_orchestrator_builds_logic_tree():
     """Verify that the final evaluation response contains a structured logic tree."""
     res = orchestrate("PGX-001", "Codeine")
@@ -15,9 +16,10 @@ def test_orchestrator_builds_logic_tree():
     assert res.logic_tree["node"] == "Decision Root"
     assert len(res.logic_tree["children"]) > 0
 
+
 def test_iterative_loop_detects_bad_alternative():
     """
-    Verify Task 2: The orchestrator should detect if its own 
+    Verify Task 2: The orchestrator should detect if its own
     recommended alternative is also risky.
     """
     # Maria Chen (UR) + Codeine -> system recommends Duloxetine.

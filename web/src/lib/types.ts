@@ -126,6 +126,17 @@ export interface Medication {
   is_prodrug: boolean;
 }
 
+export interface ClinicalReport {
+  id: string;
+  evaluation_id: string;
+  patient_id: string;
+  clinician_id?: string | null;
+  content: string;
+  status?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface TherapyEvidenceBundle {
   sources: string[];
   target_rationale: string;

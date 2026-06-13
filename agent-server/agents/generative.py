@@ -29,7 +29,7 @@ def design_mrna_therapy(
     Drafts the actual biological code (mRNA sequence) targeting the patient's disease.
     """
     start = time.time()
-    
+
     phenotype = "Unknown"
     if (
         patient_profile
@@ -37,22 +37,22 @@ def design_mrna_therapy(
         and patient_profile["cyp_profiles"]
     ):
         phenotype = patient_profile["cyp_profiles"][0]["phenotype"]
-    
+
     # Mocking base structural generation of an mRNA sequence based on constraints
     sequence = "AUG" + "GCA" * 15 + "UAA"
-    
+
     rationale = (
         f"Drafted candidate mRNA sequence for {target_disease} optimized "
         f"for {phenotype} metabolizer. "
     )
-    
+
     if feedback:
         rationale += f"Incorporated previous validation feedback: {feedback}."
         # Slightly alter the sequence to mock a deterministic change based on feedback
         sequence = "AUG" + "GCC" * 15 + "UAA"
-        
+
     duration_ms = int((time.time() - start) * 1000)
-    
+
     return sequence, rationale, duration_ms
 
 
@@ -87,8 +87,7 @@ def design_research_mrna_candidate(
     seed = f"{patient_id}:{target_disease}:{iteration}:{'|'.join(hints)}"
     offset = _stable_index(seed, len(codon_pool))
     body_codons = [
-        codon_pool[(offset + index) % len(codon_pool)]
-        for index in range(18)
+        codon_pool[(offset + index) % len(codon_pool)] for index in range(18)
     ]
     sequence = "AUG" + "".join(body_codons) + "UAA"
     sequence_hash = hashlib.sha256(sequence.encode("utf-8")).hexdigest()[:12]

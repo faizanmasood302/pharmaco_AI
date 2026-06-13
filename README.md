@@ -1,69 +1,48 @@
-
-
-https://github.com/user-attachments/assets/192c5348-cc50-4de0-85bc-7c9d812eaba0
-
-
-
-
-
-
-
 # Pharmacogenomic (PGx) Agent Harness
 
-**Agentic decision support for precision prescribing and experimental therapy design.**
+**Research simulation for precision prescribing and experimental therapy design. Not for clinical use.**
 
----
+The Pharmacogenomic Harness is a dual-pipeline prototype for auditable pharmacogenomic decision support and N-of-1 therapy research simulation. It uses synthetic demo data, deterministic guardrails, and human review gates to explore workflows before any real clinical compliance work.
 
-## 🚀 Overview
-
-The Pharmacogenomic Harness is a dual-pipeline clinical AI system that provides auditable, evidence-backed support for personalized medicine. It bridges the gap between population-level clinical guidelines and patient-specific genomic data.
-
-### Dual-Pipeline Architecture
+## Current Prototype Scope
 
 | Pipeline | Purpose | Key Agents |
 | :--- | :--- | :--- |
-| **Standard Care** | PGx Evaluation | Analyst, Critic, Reporter |
-| **N-of-1 Research** | Experimental Therapy Design | Design, Validation (Bioinformatics), Critic |
+| **Standard Care Simulation** | PGx evaluation over demo patient profiles | Analyst, Critic, Reporter |
+| **N-of-1 Research Simulation** | Experimental therapy design workflow | Design, Validation, Critic |
 
-*All workflows feature a strict **Human Gate** to ensure clinical accountability.*
+- **FHIR R4 parsing:** Built-in parsers extract patient demographics, genomic (`CYP2D6`, etc.) phenotypes, and `MedicationRequest` resources from sample bundles.
+- **Human review gate:** Agent outputs remain behind explicit human approval in the demo workflow. This is a prototype control, not validated regulatory compliance.
+- **Synthetic data only:** Never process real PII or PHI in this repository or its local demo environments.
 
----
+## Tech Stack
 
-## 🛠 Tech Stack
+- **Backend:** Python, FastAPI, LangGraph-style agent orchestration.
+- **Frontend:** Next.js, TypeScript, React.
+- **Data and memory:** Supabase/PostgreSQL for state, plus a markdown clinical-logic vault.
+- **Security:** BetterAuth sessions, backend session verification, and Supabase Row-Level Security policies for clinical tables.
 
-- **Backend:** Python (FastAPI, LangGraph) for agentic orchestration.
-- **Frontend:** Next.js (TypeScript, React) for professional clinical dashboards.
-- **Data & Memory:** Supabase (PostgreSQL) for live state; Obsidian (Markdown Vault) for persistent clinical wisdom.
-- **Security:** JWT-based authentication and strict Row-Level Security (RLS).
+## Model Strategy
 
----
+The harness is model-agnostic. Current code is optimized for prototype workflows; the options below are roadmap candidates, not clinical validation claims.
 
-## 🤖 Model Selection Strategy
-
-The harness is model-agnostic. Choose your "Agent Brain" based on your current phase:
-
-| Model / Provider | Best Used For | Why? |
+| Model / Provider | Best Used For | Why |
 | :--- | :--- | :--- |
-| **Groq (Llama 3)** | UI Prototyping & Demos | Extremely low latency (<2s for full chains). Keeps dev cycles fast. |
-| **GPT-4o (OpenAI)** | Production Standard Care | Rigid JSON Schema adherence ensures dashboards never crash on formatting. |
-| **Claude 3.5 Sonnet** | N-of-1 Experimental Research | Gold standard for complex logic and dense medical/scientific literature. |
-| **MedLM (Google)** | Clinical Deployment | Native medical terminology support and HIPAA-compliant enterprise integration. |
+| **Groq / Llama** | UI prototyping and demos | Low latency for chained agent steps. |
+| **GPT-4o** | Future standard-care evaluation | Strong structured-output support for dashboard contracts. |
+| **Claude** | Future N-of-1 research comparison | Strong long-context reasoning over dense scientific literature. |
+| **MedLM / Gemini on Vertex AI** | Future clinical deployment evaluation | Candidate path for healthcare integrations after formal validation. |
 
----
+## Architecture
 
-## 🏛 Architecture
+The stale architecture image link has been removed from this README. See [ARCHITECTURE.md](ARCHITECTURE.md), [AGENT_ARCHITECTURE.md](AGENT_ARCHITECTURE.md), and [FUTURE_ARCHITECTURE.md](FUTURE_ARCHITECTURE.md) for the current architecture and roadmap.
 
-![System Pipeline](v4_dual_pipeline_architecture.svg)
+## Getting Started
 
----
+1. Clone the repo: `git clone https://github.com/faizanmasood302/pharmaco_AI.git`
+2. Copy environment templates into `agent-server/.env` and `web/.env.local`.
+3. Run the stack: `docker-compose up --build`
 
-## 🚀 Getting Started
+## Security
 
-1. **Clone the repo:** `git clone https://github.com/faizanmasood302/pharmaco_AI.git`
-2. **Environment:** Copy `.env.example` to `agent-server/.env` and `web/.env.local`.
-3. **Run stack:** `docker-compose up --build`
-
----
-
-## 🔒 Security
-This harness uses **Synthetic Demo Data only**. Never process real PII or PHI. See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+This harness uses **synthetic demo data only**. Never process real PII or PHI. See [SECURITY.md](SECURITY.md) for vulnerability reporting.

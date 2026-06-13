@@ -3,7 +3,9 @@ from pathlib import Path
 
 from fhir.parser import parse_fhir_bundle
 
-FIXTURE = Path(__file__).resolve().parent.parent / "fixtures" / "ultra_rapid_patient.json"
+FIXTURE = (
+    Path(__file__).resolve().parent.parent / "fixtures" / "ultra_rapid_patient.json"
+)
 
 
 def test_parse_ultra_rapid_fixture():

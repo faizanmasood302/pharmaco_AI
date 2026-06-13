@@ -42,7 +42,10 @@ def _extract_patient(entry: dict[str, Any]) -> dict[str, Any] | None:
     except ValueError:
         # Fixed Bug #19: Explicit logging for failed DOB parsing
         import logging
-        logging.getLogger(__name__).warning("Could not parse birthDate from FHIR bundle")
+
+        logging.getLogger(__name__).warning(
+            "Could not parse birthDate from FHIR bundle"
+        )
         age = 40
     gender = resource.get("gender", "unknown")
     sex = "M" if gender == "male" else "F" if gender == "female" else "U"
@@ -88,7 +91,9 @@ def _extract_observation(entry: dict[str, Any]) -> dict[str, str] | None:
         c.get("valueCodeableConcept", {}).get("text", "")
         for c in resource.get("component", [])
     )
-    combined = " ".join(filter(None, [value_text, value_string, component_text, code.get("text", "")]))
+    combined = " ".join(
+        filter(None, [value_text, value_string, component_text, code.get("text", "")])
+    )
 
     if loinc != CYP2D6_LOINC and "CYP2D6" not in combined.upper() and "CYP" not in gene:
         return None
@@ -110,6 +115,22 @@ def _extract_observation(entry: dict[str, Any]) -> dict[str, str] | None:
     }
 
 
+def _extract_medication(entry: dict[str, Any]) -> str | None:
+    resource = entry.get("resource", entry)
+    if resource.get("resourceType") != "MedicationRequest":
+        return None
+
+    med_cc = resource.get("medicationCodeableConcept", {})
+    if med_cc:
+        text = med_cc.get("text")
+        if text:
+            return text
+        for c in med_cc.get("coding", []):
+            if c.get("display"):
+                return c.get("display")
+    return None
+
+
 def parse_fhir_bundle(bundle: dict[str, Any]) -> PatientRecord:
     if bundle.get("resourceType") != "Bundle":
         raise ValueError("Expected FHIR Bundle resource")
@@ -117,6 +138,7 @@ def parse_fhir_bundle(bundle: dict[str, Any]) -> PatientRecord:
     entries = bundle.get("entry", [])
     patient_data: dict[str, Any] | None = None
     cyp_profiles: list[dict[str, str]] = []
+    medications: list[str] = []
 
     for entry in entries:
         if patient_data is None:
@@ -124,6 +146,9 @@ def parse_fhir_bundle(bundle: dict[str, Any]) -> PatientRecord:
         profile = _extract_observation(entry)
         if profile:
             cyp_profiles.append(profile)
+        med = _extract_medication(entry)
+        if med:
+            medications.append(med)
 
     if patient_data is None:
         raise ValueError("Bundle must contain a Patient resource")
@@ -138,4 +163,5 @@ def parse_fhir_bundle(bundle: dict[str, Any]) -> PatientRecord:
         "sex": patient_data["sex"],
         "indication": patient_data["indication"],
         "cyp_profiles": cyp_profiles,
+        "current_medications": medications,
     }

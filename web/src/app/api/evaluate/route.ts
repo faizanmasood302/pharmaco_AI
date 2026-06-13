@@ -5,11 +5,9 @@ import { proxyPost } from "@/lib/api";
 export async function POST(request: NextRequest) {
   const token = request.cookies.get("better-auth.session_token")?.value;
   const body = await request.json();
-  console.log("Evaluation API called with body:", body);
 
   try {
     const data = await proxyPost('/api/evaluate-prescription', body, token);
-    console.log("Evaluation API success");
     return NextResponse.json(data);
   } catch (error: unknown) {
     console.error("Evaluation API error:", error);

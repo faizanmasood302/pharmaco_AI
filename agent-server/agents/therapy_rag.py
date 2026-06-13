@@ -23,11 +23,7 @@ CORE_TERMS = {
 
 
 def _tokenize(text: str) -> set[str]:
-    return {
-        token
-        for token in re.findall(r"[a-z0-9]+", text.lower())
-        if len(token) > 2
-    }
+    return {token for token in re.findall(r"[a-z0-9]+", text.lower()) if len(token) > 2}
 
 
 def _load_chunks() -> list[dict[str, Any]]:
@@ -35,9 +31,7 @@ def _load_chunks() -> list[dict[str, Any]]:
     for path in sorted(KNOWLEDGE_DIR.glob("*.md")):
         text = path.read_text(encoding="utf-8")
         parts = [
-            part.strip()
-            for part in re.split(r"\n(?=## |\# )", text)
-            if part.strip()
+            part.strip() for part in re.split(r"\n(?=## |\# )", text) if part.strip()
         ]
         for index, part in enumerate(parts):
             chunks.append(
@@ -73,24 +67,41 @@ def retrieve_therapy_evidence(
     """Retrieve source-grounded context for the n-of-1 research workflow."""
     start = time.perf_counter()
     # Exclude very common terms from the "must-match" disease set
-    stop_terms = {"disease", "research", "simulation", "therapy", "target", "patient", "clinical"}
+    stop_terms = {
+        "disease",
+        "research",
+        "simulation",
+        "therapy",
+        "target",
+        "patient",
+        "clinical",
+    }
     disease_terms = _tokenize(target_disease) - stop_terms
-    
+
     phenotype_terms = {
         profile.get("phenotype", "")
         for profile in patient_context.get("cyp_profiles", [])
         if isinstance(profile, dict)
     }
-    general_terms = _tokenize("mRNA therapy target validation safety human review research simulation")
-    query_terms = _tokenize(target_disease) | _tokenize(patient_context.get("indication", "")) | _tokenize(" ".join(phenotype_terms)) | general_terms
+    general_terms = _tokenize(
+        "mRNA therapy target validation safety human review research simulation"
+    )
+    query_terms = (
+        _tokenize(target_disease)
+        | _tokenize(patient_context.get("indication", ""))
+        | _tokenize(" ".join(phenotype_terms))
+        | general_terms
+    )
 
     chunks = _load_chunks()
     ranked = []
     for chunk in chunks:
         score = _score_chunk(chunk, query_terms)
         # Bonus for specific disease-name overlap
-        disease_overlap = len(disease_terms & _tokenize(chunk["text"])) if disease_terms else 0
-        score += (disease_overlap * 20)
+        disease_overlap = (
+            len(disease_terms & _tokenize(chunk["text"])) if disease_terms else 0
+        )
+        score += disease_overlap * 20
         if score > 0:
             ranked.append((score, chunk, disease_overlap))
 
@@ -102,16 +113,18 @@ def retrieve_therapy_evidence(
 
     sources = sorted({chunk["source"] for _, chunk, _ in selected})
     total_disease_overlap = sum(d for _, _, d in selected)
-    
+
     policy_present = any("n_of_1" in source for source in sources)
-    
+
     # Logic: If a specific disease term was provided, it MUST be found in sources
     # to be considered moderate/high quality.
     if disease_terms and total_disease_overlap < 1:
         return _low_quality_response(start)
-    
+
     if total_disease_overlap >= 3:
-        evidence_quality = "high" if len(sources) >= 2 and policy_present else "moderate"
+        evidence_quality = (
+            "high" if len(sources) >= 2 and policy_present else "moderate"
+        )
     elif total_disease_overlap >= 1 or not disease_terms:
         evidence_quality = "moderate"
     else:
@@ -160,7 +173,9 @@ def _low_quality_response(start_time: float) -> tuple[dict[str, Any], int]:
                 "reliably identify a therapeutic target for this indication."
             ),
             "known_risks": ["Insufficient source grounding for target selection."],
-            "open_questions": ["Which reviewed disease mechanism supports this target?"],
+            "open_questions": [
+                "Which reviewed disease mechanism supports this target?"
+            ],
             "evidence_quality": "low",
             "source_snippets": [],
         },

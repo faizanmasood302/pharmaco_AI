@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
-import logging
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -73,10 +73,12 @@ def retrieve_clinical_evidence(
     Task 4: Scoped ReAct.
     """
     start = time.perf_counter()
-    
+
     # Reasoning Step (Internal)
-    reasoning = f"Evaluating if local knowledge for {medication} + {phenotype} is sufficient..."
-    
+    reasoning = (
+        f"Evaluating if local knowledge for {medication} + {phenotype} is sufficient..."
+    )
+
     documents = _load_documents()
     ranked = sorted(
         (

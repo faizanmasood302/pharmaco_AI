@@ -57,7 +57,6 @@ def test_research_mrna_validator_blocks_internal_stop_codons():
 
     assert validation["passed"] is False
     assert any(
-        "internal stop" in reason.lower()
-        for reason in validation["blocked_reasons"]
+        "internal stop" in reason.lower() for reason in validation["blocked_reasons"]
     )
     assert any("internal stop" in hint.lower() for hint in validation["revision_hints"])

@@ -3,17 +3,17 @@ from __future__ import annotations
 import logging
 import os
 import uuid
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
-from logging_config import setup_logging, request_id_var
+from logging_config import request_id_var, setup_logging
+
 
 # Initialize rate limiter
 def get_user_or_ip(request: Request):
@@ -32,21 +32,22 @@ from agents.adherence import process_check_in, start_adherence_monitoring
 from agents.orchestrator import orchestrate
 from agents.reporter import generate_clinical_note
 from agents.therapy_orchestrator import orchestrate_therapy_generation
-from auth import create_token, verify_token
+from auth import verify_token
 from db.supabase import (
     get_clinical_reports_by_patient,
     is_configured,
-    update_evaluation_decision,
-    update_therapy_decision,
     list_all_patients,
     list_evaluations,
     list_medications,
     save_clinical_report,
     save_therapy_generation,
+    update_evaluation_decision,
+    update_therapy_decision,
     upsert_patient,
 )
 from exceptions import AuthFailedError, InternalServerError, PharmacogenomicError
 from fhir.parser import parse_fhir_bundle
+
 # setup_logging and request_id_var already imported above
 from models import (
     AdherencePlanRequest,
@@ -54,9 +55,9 @@ from models import (
     EvaluationResponse,
     FhirIngestRequest,
     PrescriptionRequest,
+    ReviewDecisionRequest,
     TherapyGenerationRequest,
     TherapyGenerationResponse,
-    ReviewDecisionRequest,
 )
 from pgx.rules import DRUG_RULES
 
@@ -213,7 +214,7 @@ async def create_clinical_report(
         return {"report_id": report_id, "status": "saved"}
     except Exception as e:
         logger.error(f"Clinical report save failed: {e}")
-        raise InternalServerError(f"Report save failed: {str(e)}")
+        raise InternalServerError(f"Report save failed: {str(e)}") from e
 
 
 @app.get("/api/patients/{patient_id}/reports")
@@ -288,29 +289,8 @@ async def ingest_fhir(
         }
     except Exception as e:
         logger.error(f"FHIR ingestion failed: {e}")
-        raise InternalServerError(f"FHIR ingestion failed: {str(e)}")
+        raise InternalServerError(f"FHIR ingestion failed: {str(e)}") from e
 
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-@app.post("/api/auth/login")
-@limiter.limit("5/minute")
-async def login(login_request: LoginRequest, request: Request):
-    # Fixed Bug #1.5: Actual credential verification with hashing
-    from config import DEMO_DOCTORS
-    import hashlib
-    
-    hashed_input = hashlib.sha256(login_request.password.encode()).hexdigest()
-    expected_hashed = DEMO_DOCTORS.get(login_request.email)
-    
-    if expected_hashed and expected_hashed == hashed_input:
-        token = create_token(user_id=login_request.email)
-        return {"access_token": token, "token_type": "bearer"}
-    
-    logger.warning(f"Failed login attempt for {login_request.email}")
-    raise AuthFailedError("Invalid email or password")
 
 @app.post("/api/evaluate-prescription", response_model=EvaluationResponse)
 @limiter.limit("10/minute")
@@ -380,7 +360,7 @@ async def create_note(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/api/adherence/plans")
@@ -401,13 +381,13 @@ async def create_adherence_plan(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/api/adherence/check-ins/{check_in_id}")
 async def submit_check_in(
     check_in_id: str, 
-    request: CheckInSubmitRequest,
+    payload: CheckInSubmitRequest,
     user_id: str = Depends(verify_token)
 ):
     try:
@@ -423,7 +403,7 @@ async def submit_check_in(
         raise
     except Exception as e:
         logger.error(f"Check-in submission failed: {e}")
-        raise InternalServerError(f"Check-in submission failed: {str(e)}")
+        raise InternalServerError(f"Check-in submission failed: {str(e)}") from e
 
 
 @app.post("/api/evaluations/{evaluation_id}/decision")
@@ -476,7 +456,7 @@ async def review_evaluation_decision(
         raise
     except Exception as e:
         logger.error(f"Evaluation decision update failed: {e}")
-        raise InternalServerError(f"Decision update failed: {str(e)}")
+        raise InternalServerError(f"Decision update failed: {str(e)}") from e
 
 
 @app.post("/api/therapy-requests/{therapy_request_id}/decision")
@@ -524,7 +504,7 @@ async def review_therapy_decision(
         raise
     except Exception as e:
         logger.error(f"Therapy decision update failed: {e}")
-        raise InternalServerError(f"Decision update failed: {str(e)}")
+        raise InternalServerError(f"Decision update failed: {str(e)}") from e
 
 
 @app.post("/api/generate-therapy", response_model=TherapyGenerationResponse)
@@ -580,3 +560,4 @@ async def generate_therapy_endpoint(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
+

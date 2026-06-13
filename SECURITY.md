@@ -4,7 +4,7 @@
 
 We take the security of this clinical instrument seriously. If you discover a security vulnerability, please do not open a public issue. Instead, follow these steps:
 
-1.  **Email:** Send a report to security@example.com (Replace with your actual email).
+1.  **Private report:** Use GitHub's private vulnerability reporting for this repository, or contact the repository owner through the private channel listed on the project profile.
 2.  **Details:** Include as much detail as possible, including steps to reproduce.
 3.  **Acknowledgement:** We will acknowledge receipt of your report within 48 hours.
 

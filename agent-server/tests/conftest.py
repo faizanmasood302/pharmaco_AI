@@ -58,10 +58,11 @@ def mock_ultra_rapid_patient() -> PatientRecord:
                 "gene": "CYP2D6",
                 "diplotype": "*1/*1xN",
                 "phenotype": "Ultra-Rapid Metabolizer",
-                "activity_score": "3.0"
+                "activity_score": "3.0",
             }
-        ]
+        ],
     }
+
 
 @pytest.fixture
 def mock_poor_metabolizer_patient() -> PatientRecord:
@@ -76,15 +77,13 @@ def mock_poor_metabolizer_patient() -> PatientRecord:
                 "gene": "CYP2D6",
                 "diplotype": "*4/*4",
                 "phenotype": "Poor Metabolizer",
-                "activity_score": "0.0"
+                "activity_score": "0.0",
             }
-        ]
+        ],
     }
+
 
 @pytest.fixture
 def eval_payload():
     """Fixture providing a standard evaluation payload for tests."""
-    return {
-        "patient_id": "PGX-001",
-        "medication": "Codeine"
-    }
+    return {"patient_id": "PGX-001", "medication": "Codeine"}

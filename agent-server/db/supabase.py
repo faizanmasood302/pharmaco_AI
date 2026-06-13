@@ -7,10 +7,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from dotenv import load_dotenv
+from supabase import Client, create_client
 
 from models import PatientIn, PatientOut
 from pgx.patients import PATIENTS, PatientRecord, get_patient
-from supabase import Client, create_client
 
 logger = logging.getLogger(__name__)
 # Load environment and define variables at module level
@@ -30,12 +30,14 @@ _local_therapy_audit_events: dict[str, list[dict[str, Any]]] = {}
 try:
     if _url and _key:
         _client = create_client(_url, _key)
-        
+
         if _service_key:
             logger.info("Initializing admin client with Service Role Key")
             _admin_client = create_client(_url, _service_key)
         else:
-            logger.warning("Service Role Key missing; using anon client as fallback for admin tasks.")
+            logger.warning(
+                "Service Role Key missing; using anon client as fallback for admin tasks."
+            )
             _admin_client = _client
     else:
         logger.error("SUPABASE_URL or SUPABASE_ANON_KEY is missing from environment")
@@ -121,6 +123,7 @@ def get_clinical_reports_by_patient(patient_id: str) -> list[dict[str, Any]]:
 _local_medications = {}
 _local_reports = {}
 
+
 def is_configured() -> bool:
     return _client is not None
 
@@ -184,12 +187,16 @@ def upsert_patient(patient: PatientRecord) -> PatientRecord:
         try:
             # Use PatientIn to automatically encrypt sensitive fields
             p_in = PatientIn(**patient)
-            data_to_save = p_in.model_dump(exclude={'display_name'}) # Don't save plain text
-            data_to_save['id'] = data_to_save['id'].upper()
-            
+            data_to_save = p_in.model_dump(
+                exclude={"display_name"}
+            )  # Don't save plain text
+            data_to_save["id"] = data_to_save["id"].upper()
+
             client.table("patients").upsert(data_to_save).execute()
         except Exception as exc:
-            logger.warning("Supabase patient upsert failed for %s: %s", patient["id"], exc)
+            logger.warning(
+                "Supabase patient upsert failed for %s: %s", patient["id"], exc
+            )
     else:
         PATIENTS[patient["id"].upper()] = patient
     return patient
@@ -282,8 +289,10 @@ def get_evaluation_by_id(evaluation_id: str) -> dict[str, Any] | None:
             if result.data:
                 return result.data
         except Exception as exc:
-            logger.warning("Supabase evaluation lookup failed for %s: %s", evaluation_id, exc)
-    
+            logger.warning(
+                "Supabase evaluation lookup failed for %s: %s", evaluation_id, exc
+            )
+
     # Fallback to local cache
     return _local_evaluations.get(evaluation_id)
 
@@ -342,11 +351,15 @@ def update_evaluation_decision(
             .execute()
         )
         if db_res.data:
-            logger.info(f"Database successfully updated for evaluation: {evaluation_id}")
+            logger.info(
+                f"Database successfully updated for evaluation: {evaluation_id}"
+            )
             return db_res.data[0]
         return updated_record
     except Exception as exc:
-        logger.error("Supabase evaluation decision update failed for %s: %s", evaluation_id, exc)
+        logger.error(
+            "Supabase evaluation decision update failed for %s: %s", evaluation_id, exc
+        )
         if evaluation_id in _local_evaluations:
             return _local_evaluations[evaluation_id]
         return updated_record
@@ -402,18 +415,20 @@ def update_therapy_decision(
 
     try:
         # Update both the table and the result_json for consistency
-        client.table("therapy_requests").update(
-            {"result_json": result_json}
-        ).eq("id", therapy_request_id).execute()
-        
+        client.table("therapy_requests").update({"result_json": result_json}).eq(
+            "id", therapy_request_id
+        ).execute()
+
         result = (
             client.table("therapy_human_reviews")
-            .update({
-                "status": normalized,
-                "reviewer_id": reviewer,
-                "reviewed_at": reviewed_at,
-                "review_notes": rationale,
-            })
+            .update(
+                {
+                    "status": normalized,
+                    "reviewer_id": reviewer,
+                    "reviewed_at": reviewed_at,
+                    "review_notes": rationale,
+                }
+            )
             .eq("therapy_request_id", therapy_request_id)
             .execute()
         )
@@ -449,7 +464,6 @@ def list_check_ins_for_patient(patient_id: str, limit: int = 5) -> list[dict]:
         return []
 
 
-
 def create_adherence_plan(
     patient_id: str, medication: str, evaluation_id: str | None = None
 ) -> dict[str, Any] | None:
@@ -475,7 +489,9 @@ def create_adherence_plan(
             full = get_adherence_plan(plan["id"])
             return full or plan
     except Exception as exc:
-        logger.warning("Supabase adherence plan creation failed for %s: %s", patient_id, exc)
+        logger.warning(
+            "Supabase adherence plan creation failed for %s: %s", patient_id, exc
+        )
     return _local_adherence_plan(patient_id, medication)
 
 
@@ -536,7 +552,9 @@ def _seed_check_ins(plan_id: str, medication: str) -> None:
                 }
             ).execute()
         except Exception as exc:
-            logger.warning("Supabase check-in seed failed for plan %s: %s", plan_id, exc)
+            logger.warning(
+                "Supabase check-in seed failed for plan %s: %s", plan_id, exc
+            )
 
 
 def get_adherence_plan(plan_id: str) -> dict[str, Any] | None:

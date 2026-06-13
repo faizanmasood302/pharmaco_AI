@@ -1,6 +1,6 @@
 # System Architecture: Pharmacogenomic (PGx) Harness
 
-This document describes the high-level architecture of the Pharmacogenomic Agent Harness, a clinical instrument for personalized prescribing and N-of-1 research.
+This document describes the high-level architecture of the Pharmacogenomic Agent Harness, a research simulation prototype for personalized prescribing and N-of-1 research. It is not clinically validated and is not for clinical use.
 
 ## 1. Design Philosophy
 The system is built on the principle of **Agentic Orchestration with Deterministic Guardrails**. Instead of relying on a single large language model (LLM) for medical decisions, the harness decomposes clinical workflows into specialized agents, each governed by source-grounded evidence and deterministic biological rules.
@@ -11,13 +11,13 @@ The system is built on the principle of **Agentic Orchestration with Determinist
 The core intelligence layer, implemented in Python, provides:
 - **Multi-Agent Orchestration:** Linear and cyclic (graph-based) workflows.
 - **Source-Grounded RAG:** A retrieval engine that pulls evidence from local clinical guidelines (CPIC, PharmGKB).
-- **Bioinformatics Adapter:** Simulations for mRNA folding energy (MFE), homology, and immunogenicity.
+- **Bioinformatics Adapter:** Deterministic simulations for mRNA folding energy (MFE), homology, and immunogenicity.
 
 ### 2.2 Frontend: Next.js Clinical Dashboard
 A React-based professional interface featuring:
-- **Prescription Console:** Real-time risk assessment for drug-gene pairs.
+- **Prescription Console:** Demo risk assessment for drug-gene pairs.
 - **N-of-1 Research Workspace:** An iterative lab environment for custom therapy design.
-- **Adherence Triage:** Real-world patient feedback loop with AI-driven clinical triage.
+- **Adherence Triage:** Simulated patient feedback loop with deterministic triage.
 
 ### 2.3 Storage Layer: Supabase & Obsidian
 - **Supabase (Relational):** Manages patient records, medications, audit logs, and real-time state.
@@ -35,12 +35,12 @@ A linear orchestration used in the Prescription Console:
 
 ### 3.2 N-of-1 Research Graph (LangGraph)
 A cyclic workflow for iterative therapy optimization:
-- **Design → Validate → Revise:** If the **In-Silico Validation Suite** detects biological instability (e.g., high folding energy), it sends revision hints back to the **Design Agent** to optimize the candidate.
+- **Design -> Validate -> Revise:** If the **In-Silico Validation Suite** detects biological instability (e.g., high folding energy), it sends revision hints back to the **Design Agent** to optimize the candidate.
 - **Deterministic Branching:** The workflow automatically fails if evidence quality is too low, preventing "hallucinated" research.
 
 ## 4. Security & Compliance
 - **Synthetic Data only:** Zero PII/PHI in the development environment.
-- **JWT Authentication:** Role-based access control (RBAC) for all API endpoints.
+- **Authentication:** BetterAuth sessions verified by the backend for protected API endpoints.
 - **Auditability:** Every agent step, rationale, and confidence score is persisted for clinical review.
 
 ---

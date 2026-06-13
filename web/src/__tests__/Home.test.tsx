@@ -119,6 +119,9 @@ describe('Home Page', () => {
       if (url === '/api/evaluations/PGX-001') {
         return jsonResponse({ evaluations: [] });
       }
+      if (url === '/api/patients/PGX-001/reports') {
+        return jsonResponse({ reports: [] });
+      }
       if (url === '/api/evaluate') {
         return jsonResponse(pendingEvaluation);
       }

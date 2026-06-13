@@ -1,5 +1,5 @@
 -- Pharmacogenomic Harness — Supabase schema
--- Run in Supabase SQL editor (Dashboard → SQL → New query)
+-- Run in Supabase SQL editor (Dashboard -> SQL -> New query)
 
 -- Utility to automatically update updated_at column
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -178,8 +178,18 @@ create index if not exists clinical_reports_patient_idx on clinical_reports(pati
 CREATE TRIGGER update_clinical_reports_modtime BEFORE UPDATE ON clinical_reports FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 -- ROW LEVEL SECURITY (C1)
+alter table patients enable row level security;
+alter table evaluations enable row level security;
+alter table adherence_plans enable row level security;
+alter table check_ins enable row level security;
+alter table audit_logs enable row level security;
 alter table medications enable row level security;
 alter table clinical_reports enable row level security;
+alter table therapy_requests enable row level security;
+alter table therapy_candidates enable row level security;
+alter table therapy_validation_results enable row level security;
+alter table therapy_audit_events enable row level security;
+alter table therapy_human_reviews enable row level security;
 
 create policy "Allow authenticated read access" on medications for select using (auth.role() = 'authenticated');
 create policy "Allow authenticated read access" on clinical_reports for select using (auth.role() = 'authenticated');
@@ -256,5 +266,13 @@ insert into patients (id, display_name_encrypted, age, sex, indication, cyp_prof
   'F',
   'Post-surgical acute pain (day 5)',
   '[{"gene":"CYP2D6","diplotype":"*1/*2","phenotype":"Normal Metabolizer","activity_score":"1.5 (normal)"}]'::jsonb
+),
+(
+  'PGX-004',
+  'Alex Rivera',
+  36,
+  'M',
+  'Severe acute pain post-injury',
+  '[{"gene":"CYP2D6","diplotype":"*1/*1xN","phenotype":"Ultra-Rapid Metabolizer","activity_score":"2.25 (increased)"}]'::jsonb
 )
 on conflict (id) do nothing;

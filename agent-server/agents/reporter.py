@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
-import logging
 from typing import Any
+
 from dotenv import load_dotenv
-from models import EvaluationResponse
+
 from config import GROQ_MODEL
+from models import EvaluationResponse
 
 load_dotenv()
 
@@ -14,13 +16,15 @@ logger = logging.getLogger(__name__)
 
 try:
     from groq import Groq
+
     _groq = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 except Exception:
     _groq = None
 
+
 def generate_clinical_note(evaluation_input: Any) -> str:
     """Generate a structured EHR-ready clinical note from an evaluation."""
-    
+
     # FORCE conversion to Pydantic model to prevent 'dict' attribute errors
     try:
         if isinstance(evaluation_input, dict):
@@ -30,9 +34,9 @@ def generate_clinical_note(evaluation_input: Any) -> str:
     except Exception as e:
         return f"CRITICAL ERROR: Failed to parse evaluation data. {e}"
 
-    # Enable LLM notes only if configured
-    enable_llm = os.environ.get("ENABLE_LLM_NOTES", "").lower() == "true"
-    
+    # Enable LLM notes if GROQ_API_KEY is present, unless explicitly disabled
+    enable_llm = os.environ.get("ENABLE_LLM_NOTES", "true").lower() == "true"
+
     if _groq is None or not enable_llm:
         return _generate_fallback_note(evaluation)
 
@@ -44,19 +48,21 @@ def generate_clinical_note(evaluation_input: Any) -> str:
         rationale = evaluation.alternative_rationale
         alternative = evaluation.recommended_alternative or "None required"
         cpic_level = evaluation.cpic_level
-        
+
         display_name = patient.display_name if patient else "Unknown Patient"
         age = patient.age if patient else "N/A"
         sex = patient.sex if patient else "N/A"
         indication = patient.indication if patient else "N/A"
-        
+
         # Determine relevant gene/phenotype
         relevant_gene = "CYP2D6"
         phenotype = "Unknown"
-        
+
         if patient and patient.cyp_profiles:
             for profile in patient.cyp_profiles:
-                if profile.gene in risk_summary or any(profile.gene in p for p in evaluation.pathways):
+                if profile.gene in risk_summary or any(
+                    profile.gene in p for p in evaluation.pathways
+                ):
                     relevant_gene = profile.gene
                     phenotype = profile.phenotype
                     break
@@ -91,30 +97,28 @@ def generate_clinical_note(evaluation_input: Any) -> str:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a Senior Clinical Pharmacogeneticist. Your task is to provide a structured, formal EHR documentation entry."
+                    "content": "You are a Senior Clinical Pharmacogeneticist. Your task is to provide a structured, formal EHR documentation entry.",
                 },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                {"role": "user", "content": prompt},
             ],
             model=GROQ_MODEL,
             max_tokens=600,
-            temperature=0.2
+            temperature=0.2,
         )
         return completion.choices[0].message.content
     except Exception as e:
         logger.warning(f"Note generation LLM failure: {e}", exc_info=True)
         return _generate_fallback_note(evaluation)
 
+
 def _generate_fallback_note(eval: EvaluationResponse) -> str:
     p = eval.patient
     display_name = p.display_name if p else "N/A"
     indication = p.indication if p else "unspecified"
-    
+
     relevant_gene = "CYP2D6"
     pheno = "Unknown"
-    
+
     if p and p.cyp_profiles:
         for profile in p.cyp_profiles:
             if profile.gene in eval.risk_summary:
@@ -127,7 +131,7 @@ def _generate_fallback_note(eval: EvaluationResponse) -> str:
 
     actions_text = "\n".join([f"- {a}" for a in eval.next_best_actions])
     date_str = time.strftime("%Y-%m-%d")
-    
+
     return f"""CLINICAL PHARMACOGENOMIC CONSULTATION
 -------------------------------------------
 PATIENT: {display_name}

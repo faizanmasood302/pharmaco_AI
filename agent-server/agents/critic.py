@@ -5,7 +5,9 @@ import time
 from pgx.rules import RiskAssessment, RiskLevel
 
 
-def critique_prescription(assessment: RiskAssessment) -> tuple[RiskAssessment, str, int]:
+def critique_prescription(
+    assessment: RiskAssessment,
+) -> tuple[RiskAssessment, str, int]:
     """Critic Agent: confirm flag and safe alternative for severe mismatches."""
     start = time.perf_counter()
 

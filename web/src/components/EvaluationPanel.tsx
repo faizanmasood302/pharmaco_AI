@@ -277,9 +277,14 @@ export default function EvaluationPanel({ result, onNoteGenerated, onReviewDecis
             </p>
           )}
           {result.human_gate.reviewed_by && (
-            <p className="mt-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">
-              Reviewed by {result.human_gate.reviewed_by}
-            </p>
+            <div className="mt-3 border-t border-outline-variant/10 pt-3 flex flex-col">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">
+                Clinician Digital Signature
+              </p>
+              <p className="font-serif text-xl italic text-primary/80 mt-1">
+                {result.human_gate.reviewed_by.length > 30 ? "Dr. Attending Physician" : result.human_gate.reviewed_by}
+              </p>
+            </div>
           )}
           {result.human_gate.reviewed_at && (
             <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/40">

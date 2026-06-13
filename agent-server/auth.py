@@ -1,20 +1,23 @@
-import uuid
-from datetime import UTC, datetime, timedelta
+import logging
+from datetime import UTC, datetime
 
-from fastapi import Depends, status
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from config import SUPABASE_URL, SUPABASE_ANON_KEY
-from exceptions import AuthFailedError
 from db.supabase import get_admin_client
+from exceptions import AuthFailedError
 
 security = HTTPBearer()
+logger = logging.getLogger(__name__)
 
-def verify_token(credentials: HTTPAuthorizationCredentials | None = Depends(security)) -> str:
+
+def verify_token(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> str:
     """
     Verify BetterAuth session token against the Supabase database.
     BetterAuth session tokens are opaque strings stored in the 'session' table.
-    
+
     Security Notes:
     - Tokens are validated server-side against the Supabase session table
     - Expired sessions are rejected
@@ -22,15 +25,12 @@ def verify_token(credentials: HTTPAuthorizationCredentials | None = Depends(secu
     """
     if not credentials or not credentials.credentials:
         raise AuthFailedError("Authorization header missing or malformed")
-    
+
     raw_token = credentials.credentials
-    # BetterAuth tokens can be signed (value.signature). 
+    # BetterAuth tokens can be signed (value.signature).
     # The DB only stores the 'value' part before the first dot.
-    token = raw_token.strip().strip('"').strip("'").split('.')[0]
-    
-    import logging
-    logger = logging.getLogger(__name__)
-    
+    token = raw_token.strip().strip('"').strip("'").split(".")[0]
+
     logger.info("Validating session token")
 
     if not token:
@@ -58,20 +58,25 @@ def verify_token(credentials: HTTPAuthorizationCredentials | None = Depends(secu
         expires_at_raw = result.data.get("expiresAt")
         if expires_at_raw:
             from dateutil import parser
+
             try:
                 if isinstance(expires_at_raw, (int, float)):
                     expires_at = datetime.fromtimestamp(expires_at_raw / 1000, UTC)
                 else:
                     expires_at = parser.isoparse(str(expires_at_raw))
-                
+
                 if expires_at < datetime.now(UTC):
                     logger.info(f"Session expired for user {result.data.get('userId')}")
                     raise AuthFailedError("Session expired. Please log in again.")
             except AuthFailedError:
                 raise
             except Exception as parse_err:
-                logger.warning(f"Failed to parse session expiry {expires_at_raw}: {parse_err}")
-                raise AuthFailedError("Session validation error. Please log in again.")
+                logger.warning(
+                    f"Failed to parse session expiry {expires_at_raw}: {parse_err}"
+                )
+                raise AuthFailedError(
+                    "Session validation error. Please log in again."
+                ) from parse_err
 
         user_id = result.data.get("userId")
         if not user_id:
@@ -81,14 +86,6 @@ def verify_token(credentials: HTTPAuthorizationCredentials | None = Depends(secu
         return user_id
     except AuthFailedError:
         raise
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Session verification failed: {e}", exc_info=True)
-        raise AuthFailedError("Authentication error. Please log in again.")
-
-
-# create_token is no longer used as BetterAuth handles session generation
-def create_token(user_id: str, expires_delta: timedelta = timedelta(hours=1)) -> str:
-    return "deprecated"
-
+    except Exception as exc:
+        logger.error(f"Session verification failed: {exc}", exc_info=True)
+        raise AuthFailedError("Authentication error. Please log in again.") from exc

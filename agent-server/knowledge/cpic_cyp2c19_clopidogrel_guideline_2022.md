@@ -102,9 +102,9 @@ Clopidogrel is a thienopyridine prodrug that requires hepatic biotransformation 
 
 Patient responses to clopidogrel vary widely. Many studies have shown that CYP2C19 IMs and PMs have reduced active clopidogrel metabolite concentrations and higher on-treatment platelet reactivity compared to CYP2C19 NMs. Substantial evidence links *CYP2C19* no function alleles with poorer clinical outcomes among patients with clopidogrel-treated ACS, particularly those undergoing PCI.
 
-Carriers of the increased function *CYP2C19\*17* allele exhibit modestly higher clopidogrel active metabolite formation, inhibition of platelet reactivity, and bleeding risk compared to non-carriers in some studies; however, because *\*17* does not occur on the *\*2* haplotype, these associations could be due in part to absence of the no function *\*2* allele.
+Carriers of the function *CYP2C19\*17* allele exhibit modestly higher clopidogrel active metabolite formation, inhibition of platelet reactivity, and bleeding risk compared to non-carriers in some studies; however, because *\*17* does not occur on the *\*2* haplotype, these associations could be due in part to absence of the no function *\*2* allele.
 
-Large meta-analyses have shown that clopidogrel-treated patients undergoing PCI who are CYP2C19 IMs or PMs have an increased risk for major adverse cardiovascular events (MACEs) and stent thrombosis compared with CYP2C19 NMs. In East Asian populations: MACE odds ratio (OR) 1.92 (95% CI 1.34–2.76) for IMs and OR 3.08 (95% CI 1.85–5.13) for PMs; stent thrombosis OR 4.77 (95% CI 2.84–8.01) for IMs and PMs combined.
+Large meta-analyses have shown that clopidogrel-treated patients undergoing PCI who are CYP2C19 IMs or PMs have an risk for major adverse cardiovascular events (MACEs) and stent thrombosis compared with CYP2C19 NMs. In East Asian populations: MACE odds ratio (OR) 1.92 (95% CI 1.34–2.76) for IMs and OR 3.08 (95% CI 1.85–5.13) for PMs; stent thrombosis OR 4.77 (95% CI 2.84–8.01) for IMs and PMs combined.
 
 Patients treated with clopidogrel for ischemic stroke or TIA who were genotyped as CYP2C19 *\*2*, *\*3*, or *\*8* heterozygotes (IMs) or homozygotes (PMs) had an increased risk for composite vascular events (RR 1.51, 95% CI 1.10–2.06) and increased risk of stroke (RR 1.92, 95% CI 1.57–2.35).
 

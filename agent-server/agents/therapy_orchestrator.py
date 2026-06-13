@@ -207,16 +207,18 @@ def evidence_rag_node(state: TherapyGraphState) -> dict[str, Any]:
 def target_selection_node(state: TherapyGraphState) -> dict[str, Any]:
     start = time.perf_counter()
     evidence = state["evidence_bundle"] or {}
-    patient_context = state["patient_context"] or {}
-    
+    state["patient_context"] or {}
+
     # Improved target selection using evidence bundle
     target_rationale = evidence.get("target_rationale", "No evidence summary.")
     evidence_quality = evidence.get("evidence_quality", "low")
     sources = evidence.get("sources", [])
-    
+
     # Determine confidence based on evidence quality
-    confidence = {"high": 0.92, "moderate": 0.78, "low": 0.25}.get(evidence_quality, 0.15)
-    
+    confidence = {"high": 0.92, "moderate": 0.78, "low": 0.25}.get(
+        evidence_quality, 0.15
+    )
+
     # Architecture: Refuse target selection if evidence is too weak
     status = "complete"
     if not sources or evidence_quality == "low":
@@ -234,7 +236,9 @@ def target_selection_node(state: TherapyGraphState) -> dict[str, Any]:
 
     target_profile = {
         "target_name": f"{state['target_disease']} research target",
-        "target_type": "pathway" if "pathway" in target_rationale.lower() else "protein",
+        "target_type": "pathway"
+        if "pathway" in target_rationale.lower()
+        else "protein",
         "rationale": rationale,
         "evidence_refs": sources,
         "confidence": confidence,
@@ -334,9 +338,7 @@ def validation_node(state: TherapyGraphState) -> dict[str, Any]:
             _audit(
                 "in_silico_validation",
                 "pass" if validation["passed"] else "block",
-                (
-                    f"Overall simulated risk score: {validation['overall_risk_score']}."
-                ),
+                (f"Overall simulated risk score: {validation['overall_risk_score']}."),
                 human=True,
             ),
         ),
@@ -482,7 +484,7 @@ def failure_report_node(state: TherapyGraphState) -> dict[str, Any]:
     critique = state.get("critique") or {}
     validation = state.get("validation_result") or {}
     target_profile = state.get("target_profile") or {}
-    
+
     reasons = validation.get("blocked_reasons") or []
     if not reasons and target_profile.get("confidence", 1.0) < 0.4:
         reasons.append(target_profile.get("rationale", "Insufficient evidence."))
@@ -490,7 +492,7 @@ def failure_report_node(state: TherapyGraphState) -> dict[str, Any]:
         reasons = critique.get("unresolved_risks") or [
             "The workflow did not meet research simulation safety requirements."
         ]
-        
+
     narrative = (
         f"N-of-1 research simulation failed for {state['target_disease']}. "
         f"Reason: {'; '.join(reasons)} Human review is required before retrying."
@@ -527,9 +529,8 @@ def _route_after_critic(state: TherapyGraphState) -> str:
     verdict = critique.get("verdict")
     if verdict == "research_review_required":
         return "report"
-    if (
-        verdict == "revise"
-        and state.get("iteration", 0) < state.get("max_iterations", 3)
+    if verdict == "revise" and state.get("iteration", 0) < state.get(
+        "max_iterations", 3
     ):
         return "revise"
     return "failure"
@@ -658,8 +659,7 @@ def orchestrate_therapy_generation(
     evidence = final_state.get("evidence_bundle")
     validation = final_state.get("validation_result")
     candidate_history = [
-        TherapyCandidate(**item)
-        for item in final_state.get("candidate_history", [])
+        TherapyCandidate(**item) for item in final_state.get("candidate_history", [])
     ]
     final_candidate = TherapyCandidate(**candidate) if candidate else None
     validation_result = TherapyValidationResult(**validation) if validation else None

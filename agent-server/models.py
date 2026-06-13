@@ -48,6 +48,7 @@ class CypProfileOut(BaseModel):
 
 class PatientIn(BaseModel):
     """Patient data on input (encrypted before storage)"""
+
     id: str
     display_name: str
     display_name_encrypted: str | None = None
@@ -55,15 +56,16 @@ class PatientIn(BaseModel):
     sex: str
     indication: str
     cyp_profiles: list[CypProfileOut]
-    
-    @model_validator(mode='before')
+
+    @model_validator(mode="before")
     @classmethod
     def encrypt_sensitive_fields(cls, values):
         # We only encrypt if we have the crypto module loaded and it's not a local seed
         try:
             from crypto import encrypt_pii
-            if 'display_name' in values:
-                values['display_name_encrypted'] = encrypt_pii(values['display_name'])
+
+            if "display_name" in values:
+                values["display_name_encrypted"] = encrypt_pii(values["display_name"])
         except ImportError:
             pass
         return values
@@ -73,7 +75,7 @@ class PatientOut(BaseModel):
     id: str
     display_name: str
     age: int = Field(..., ge=0, le=120, description="Age 0-120")
-    sex: str = Field(..., pattern="^[MFOU]$") # Male, Female, Other, Unknown
+    sex: str = Field(..., pattern="^[MFOU]$")  # Male, Female, Other, Unknown
     indication: str
     cyp_profiles: list[CypProfileOut]
 
@@ -82,21 +84,22 @@ class PatientOut(BaseModel):
         """Construct from database record (decrypt fields if encrypted)"""
         try:
             from crypto import decrypt_pii
+
             # If the database returns the encrypted field, decrypt it
-            if 'display_name_encrypted' in db_record:
-                name = decrypt_pii(db_record['display_name_encrypted'])
+            if "display_name_encrypted" in db_record:
+                name = decrypt_pii(db_record["display_name_encrypted"])
             else:
-                name = db_record.get('display_name', 'Unknown')
+                name = db_record.get("display_name", "Unknown")
         except ImportError:
-            name = db_record.get('display_name', 'Unknown')
+            name = db_record.get("display_name", "Unknown")
 
         return cls(
-            id=db_record['id'],
+            id=db_record["id"],
             display_name=name,
-            age=db_record['age'],
-            sex=db_record['sex'],
-            indication=db_record.get('indication', ''),
-            cyp_profiles=db_record.get('cyp_profiles', [])
+            age=db_record["age"],
+            sex=db_record["sex"],
+            indication=db_record.get("indication", ""),
+            cyp_profiles=db_record.get("cyp_profiles", []),
         )
 
 
@@ -240,6 +243,7 @@ class TherapyValidationResult(BaseModel):
     revision_hints: list[str] = Field(default_factory=list)
     validator_version: str | None = None
 
+
 class TherapyGenerationRequest(BaseModel):
     patient_id: str
     target_disease: str = Field(
@@ -247,6 +251,7 @@ class TherapyGenerationRequest(BaseModel):
         description="Target condition or protein constraint",
     )
     max_iterations: int = Field(default=3, ge=1, le=5)
+
 
 class TherapyGenerationResponse(BaseModel):
     status: str
@@ -280,4 +285,3 @@ class TherapyGenerationResponse(BaseModel):
             ],
         )
     )
-

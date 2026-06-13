@@ -6,23 +6,32 @@ import time
 from typing import Any
 
 # Use a frozenset for O(1) membership testing and clear semantic intent
-SAFE_DRUGS = frozenset({
-    "Duloxetine", "Pregabalin", "Prasugrel", "Ticagrelor",
-    "Acetaminophen (scheduled)", "Sertraline", "Bupropion", "Ibuprofen"
-})
+SAFE_DRUGS = frozenset(
+    {
+        "Duloxetine",
+        "Pregabalin",
+        "Prasugrel",
+        "Ticagrelor",
+        "Acetaminophen (scheduled)",
+        "Sertraline",
+        "Bupropion",
+        "Ibuprofen",
+    }
+)
 RNA_ALPHABET = frozenset({"A", "U", "G", "C"})
 STOP_CODONS = frozenset({"UAA", "UAG", "UGA"})
+
 
 def validate_drug_safety(drug: str) -> tuple[bool, float, str, int]:
     """
     Validates the safety of a proposed drug using deterministic rules.
     """
     start = time.time()
-    
+
     # If the drug is explicitly in our safe list, mark it safe. Otherwise, 0.8 toxicity.
     toxicity_score = 0.2 if drug in SAFE_DRUGS else 0.8
     duration_ms = int((time.time() - start) * 1000)
-    
+
     if toxicity_score > 0.5:
         is_safe = False
         feedback = (
@@ -32,11 +41,11 @@ def validate_drug_safety(drug: str) -> tuple[bool, float, str, int]:
     else:
         is_safe = True
         feedback = (
-            f"{drug} passed safety validation. "
-            f"Toxicity score: {toxicity_score:.2f}."
+            f"{drug} passed safety validation. Toxicity score: {toxicity_score:.2f}."
         )
 
     return is_safe, toxicity_score, feedback, duration_ms
+
 
 def validate_mrna_sequence(sequence: str) -> tuple[bool, float, str, int]:
     """
@@ -56,7 +65,7 @@ def validate_mrna_sequence(sequence: str) -> tuple[bool, float, str, int]:
             toxicity_score = random.uniform(0.1, 0.9)
     else:
         toxicity_score = random.uniform(0.1, 0.9)
-        
+
     duration_ms = int((time.time() - start) * 1000)
 
     # Set threshold at 0.5 to force occasional loops between generative and validation
@@ -78,7 +87,7 @@ def validate_mrna_sequence(sequence: str) -> tuple[bool, float, str, int]:
 
 
 def _codons(sequence: str) -> list[str]:
-    return [sequence[index:index + 3] for index in range(0, len(sequence), 3)]
+    return [sequence[index : index + 3] for index in range(0, len(sequence), 3)]
 
 
 def _gc_content(sequence: str) -> float:
@@ -128,12 +137,12 @@ def validate_research_mrna_candidate(sequence: str) -> tuple[dict[str, Any], int
     """Run deterministic checks and simulated bioinformatics for the n-of-1 research simulation."""
     start = time.perf_counter()
     normalized = sequence.upper().replace(" ", "").replace("\n", "")
-    
+
     # Phase 4: Simulated Bioinformatics Integrations
     mfe = simulate_folding_energy(normalized)
     homology = simulate_homology_search(normalized)
     immunogenicity = simulate_immunogenicity_score(normalized)
-    
+
     codons = _codons(normalized) if len(normalized) % 3 == 0 else []
     coding_codons = codons[1:-1] if len(codons) >= 2 else []
     internal_stop_count = sum(1 for codon in coding_codons if codon in STOP_CODONS)
@@ -166,7 +175,9 @@ def validate_research_mrna_candidate(sequence: str) -> tuple[dict[str, Any], int
             "homology_off_target",
             not homology,
             1.0 if not homology else 0.4,
-            f"Detected {len(homology)} potential off-target homologies." if homology else "No high-identity homologies detected.",
+            f"Detected {len(homology)} potential off-target homologies."
+            if homology
+            else "No high-identity homologies detected.",
             "warning",
         ),
         _check(
@@ -219,9 +230,9 @@ def validate_research_mrna_candidate(sequence: str) -> tuple[dict[str, Any], int
         if not check["passed"] and check["severity"] == "critical"
     ]
     # Block on specific warnings for the research simulation
-    if not checks[2]["passed"]: # folding
+    if not checks[2]["passed"]:  # folding
         blocked_reasons.append(checks[2]["detail"])
-    if not checks[8]["passed"]: # gc
+    if not checks[8]["passed"]:  # gc
         blocked_reasons.append(checks[8]["detail"])
 
     revision_hints: list[str] = []
@@ -230,7 +241,9 @@ def validate_research_mrna_candidate(sequence: str) -> tuple[dict[str, Any], int
     if not checks[1]["passed"]:
         revision_hints.append("Keep the sequence in-frame and at least 30 bases long.")
     if mfe > -25.0:
-        revision_hints.append("Optimize sequence for higher folding stability (lower MFE).")
+        revision_hints.append(
+            "Optimize sequence for higher folding stability (lower MFE)."
+        )
     if homology:
         revision_hints.append("Modify sequence to avoid known off-target homologies.")
     if immunogenicity > 0.4:
@@ -270,4 +283,3 @@ def validate_research_mrna_candidate(sequence: str) -> tuple[dict[str, Any], int
         },
         elapsed,
     )
-

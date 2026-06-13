@@ -253,7 +253,11 @@ def _fallback_reasoning(
 
     if medication_lower == "clopidogrel":
         c2c19_profile = next(
-            (profile for profile in patient.get("cyp_profiles", []) if profile.get("gene") == "CYP2C19"),
+            (
+                profile
+                for profile in patient.get("cyp_profiles", [])
+                if profile.get("gene") == "CYP2C19"
+            ),
             None,
         )
         if c2c19_profile:
@@ -265,7 +269,9 @@ def _fallback_reasoning(
                     risk_summary=(
                         f"CYP2C19 {c2c19_profile.get('phenotype')} is a poor fit for clopidogrel activation."
                     ),
-                    recommended_alternative="Prasugrel" if "prasugrel" in evidence_lower else "Ticagrelor",
+                    recommended_alternative="Prasugrel"
+                    if "prasugrel" in evidence_lower
+                    else "Ticagrelor",
                     alternative_rationale="A different antiplatelet path avoids the activation bottleneck.",
                     cpic_note="CPIC-aligned evidence cautions against clopidogrel when CYP2C19 activity is reduced.",
                     cpic_level="strong",
@@ -278,7 +284,10 @@ def _fallback_reasoning(
                     human_gate_required=True,
                 )
 
-    evidence_signal = any(term in evidence_lower for term in ("avoid", "block", "warning", "caution", "risk"))
+    evidence_signal = any(
+        term in evidence_lower
+        for term in ("avoid", "block", "warning", "caution", "risk")
+    )
     risk_level = "moderate" if evidence_signal else "low"
     flagged = evidence_signal
 
@@ -300,7 +309,7 @@ def _fallback_reasoning(
             "Decide whether to proceed, switch, or defer.",
         ],
         reasoning_summary=(
-            f"Evidence was insufficient for an automatic switch, so the case should stay in human review."
+            "Evidence was insufficient for an automatic switch, so the case should stay in human review."
         ),
         human_gate_required=True,
     )
@@ -333,8 +342,15 @@ def _reasoning_agent(
                     "patient": profile,
                     "medication": medication,
                     "evidence_sources": evidence_sources,
-                    "evidence_text": evidence_text or "No source-backed evidence was retrieved.",
-                    "allowed_risk_levels": ["none", "low", "moderate", "high", "critical"],
+                    "evidence_text": evidence_text
+                    or "No source-backed evidence was retrieved.",
+                    "allowed_risk_levels": [
+                        "none",
+                        "low",
+                        "moderate",
+                        "high",
+                        "critical",
+                    ],
                 },
                 indent=2,
             ),
@@ -348,7 +364,9 @@ def _reasoning_agent(
         except Exception as exc:
             logger.warning("Failed to parse reasoning JSON, falling back: %s", exc)
 
-    return _fallback_reasoning(patient, medication, profile["phenotype"], evidence_text, evidence_sources)
+    return _fallback_reasoning(
+        patient, medication, profile["phenotype"], evidence_text, evidence_sources
+    )
 
 
 def _fallback_critique(
@@ -491,7 +509,8 @@ def _critique_agent(
                     "patient": profile,
                     "medication": medication,
                     "evidence_sources": evidence_sources,
-                    "evidence_text": evidence_text or "No source-backed evidence was retrieved.",
+                    "evidence_text": evidence_text
+                    or "No source-backed evidence was retrieved.",
                     "reasoning": reasoning.model_dump(),
                 },
                 indent=2,
@@ -503,7 +522,9 @@ def _critique_agent(
     if raw is not None:
         try:
             parsed = CriticOutput(**raw)
-            if isinstance(parsed.override_requirement, dict):  # pragma: no cover - pydantic safety
+            if isinstance(
+                parsed.override_requirement, dict
+            ):  # pragma: no cover - pydantic safety
                 parsed.override_requirement = parsed.override_requirement
             return parsed
         except Exception as exc:
@@ -569,7 +590,9 @@ def _build_logic_tree(
                 "children": [
                     {
                         "node": "Pathways",
-                        "detail": pathways[0] if pathways else "No pathway text extracted",
+                        "detail": pathways[0]
+                        if pathways
+                        else "No pathway text extracted",
                     }
                 ],
             },
@@ -580,7 +603,8 @@ def _build_logic_tree(
                 "children": [
                     {
                         "node": "Recommendation",
-                        "detail": reasoning.recommended_alternative or "Proceed only after review",
+                        "detail": reasoning.recommended_alternative
+                        or "Proceed only after review",
                     }
                 ],
             },
@@ -598,6 +622,7 @@ def _build_logic_tree(
     }
 
 
+# reasoning_summary
 def orchestrate(patient_id: str, medication: str) -> EvaluationResponse:
     start_total = time.perf_counter()
     patient, retrieval_summary, retrieval_ms = research_patient(patient_id)
@@ -638,7 +663,9 @@ def orchestrate(patient_id: str, medication: str) -> EvaluationResponse:
     )
 
     critique_start = time.perf_counter()
-    critique = _critique_agent(reasoning, patient, medication, evidence_sources, evidence_text)
+    critique = _critique_agent(
+        reasoning, patient, medication, evidence_sources, evidence_text
+    )
     critique_ms = int((time.perf_counter() - critique_start) * 1000)
     agent_steps.append(
         AgentStep(
@@ -668,7 +695,9 @@ def orchestrate(patient_id: str, medication: str) -> EvaluationResponse:
     )
 
     narrative_start = time.perf_counter()
-    clinical_narrative = _draft_narrative(profile["name"], medication, reasoning, critique)
+    clinical_narrative = _draft_narrative(
+        profile["name"], medication, reasoning, critique
+    )
     narrative_ms = int((time.perf_counter() - narrative_start) * 1000)
     agent_steps.append(
         AgentStep(
@@ -701,18 +730,23 @@ def orchestrate(patient_id: str, medication: str) -> EvaluationResponse:
     pathways = _extract_pathways(evidence_text)
     final_flagged = reasoning.flagged or critique.override_requirement.required
     next_best_actions = critique.next_best_actions or reasoning.next_best_actions
-    decision_confidence = round((reasoning.decision_confidence + critique.challenge_confidence) / 2, 2)
+    decision_confidence = round(
+        (reasoning.decision_confidence + critique.challenge_confidence) / 2, 2
+    )
     safety_notes = [
         "Synthetic demo data only; not for autonomous dispensing.",
         "Clinician approval required before release.",
     ]
     if critique.override_requirement.required:
-        safety_notes.append("If overriding the AI recommendation, document the required fields.")
+        safety_notes.append(
+            "If overriding the AI recommendation, document the required fields."
+        )
     if not evidence_sources:
-        safety_notes.append("No direct source-backed evidence was retrieved for this case.")
+        safety_notes.append(
+            "No direct source-backed evidence was retrieved for this case."
+        )
 
     final_agent_step_duration = int((time.perf_counter() - start_total) * 1000)
-    human_gate_summary = "Human gate is open but waiting for clinician review."
     agent_steps.append(
         AgentStep(
             agent="Orchestrator",
@@ -760,7 +794,9 @@ def orchestrate(patient_id: str, medication: str) -> EvaluationResponse:
         safety_notes=safety_notes,
         agent_verdict=critique.agent_verdict,
         audit_trail=critique.audit_trail,
-        logic_tree=_build_logic_tree(retrieval_summary, reasoning, critique, human_gate, pathways),
+        logic_tree=_build_logic_tree(
+            retrieval_summary, reasoning, critique, human_gate, pathways
+        ),
         override_requirement=critique.override_requirement,
         human_gate=human_gate,
         next_best_actions=next_best_actions,
@@ -776,5 +812,5 @@ def orchestrate(patient_id: str, medication: str) -> EvaluationResponse:
         response.model_dump(),
     )
     response.evaluation_id = persisted_id
-    
+
     return response

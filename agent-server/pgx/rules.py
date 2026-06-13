@@ -32,7 +32,7 @@ class DrugRule:
     is_prodrug: bool
     alternatives: tuple[str, ...]
     cpic_level: CpicLevel = CpicLevel.STRONG
-    cpic_note: str = "" # Fixed Bug #14: Added explicit note field
+    cpic_note: str = ""  # Fixed Bug #14: Added explicit note field
 
 
 DRUG_RULES: dict[str, DrugRule] = {
@@ -44,7 +44,7 @@ DRUG_RULES: dict[str, DrugRule] = {
         is_prodrug=True,
         alternatives=("Duloxetine", "Pregabalin"),
         cpic_level=CpicLevel.STRONG,
-        cpic_note="CPIC: avoid codeine in UR and PM phenotypes."
+        cpic_note="CPIC: avoid codeine in UR and PM phenotypes.",
     ),
     "tramadol": DrugRule(
         name="Tramadol",
@@ -54,7 +54,7 @@ DRUG_RULES: dict[str, DrugRule] = {
         is_prodrug=True,
         alternatives=("Pregabalin", "Acetaminophen (scheduled)"),
         cpic_level=CpicLevel.STRONG,
-        cpic_note="CPIC: avoid tramadol in UR and PM phenotypes."
+        cpic_note="CPIC: avoid tramadol in UR and PM phenotypes.",
     ),
     "hydrocodone": DrugRule(
         name="Hydrocodone",
@@ -64,7 +64,7 @@ DRUG_RULES: dict[str, DrugRule] = {
         is_prodrug=False,
         alternatives=("Pregabalin", "Duloxetine"),
         cpic_level=CpicLevel.MODERATE,
-        cpic_note="CPIC: consider alternative for PM phenotypes."
+        cpic_note="CPIC: consider alternative for PM phenotypes.",
     ),
     "oxycodone": DrugRule(
         name="Oxycodone",
@@ -74,7 +74,7 @@ DRUG_RULES: dict[str, DrugRule] = {
         is_prodrug=False,
         alternatives=("Pregabalin", "Duloxetine"),
         cpic_level=CpicLevel.MODERATE,
-        cpic_note="CPIC: caution with CYP3A4 inhibitors/poor metabolizers."
+        cpic_note="CPIC: caution with CYP3A4 inhibitors/poor metabolizers.",
     ),
     "pregabalin": DrugRule(
         name="Pregabalin",
@@ -84,7 +84,7 @@ DRUG_RULES: dict[str, DrugRule] = {
         is_prodrug=False,
         alternatives=(),
         cpic_level=CpicLevel.INFORMATIVE,
-        cpic_note="CPIC: no PGx-based dosing changes required."
+        cpic_note="CPIC: no PGx-based dosing changes required.",
     ),
     "duloxetine": DrugRule(
         name="Duloxetine",
@@ -94,7 +94,7 @@ DRUG_RULES: dict[str, DrugRule] = {
         is_prodrug=False,
         alternatives=("Pregabalin",),
         cpic_level=CpicLevel.MODERATE,
-        cpic_note="CPIC: consider dose reduction in PM phenotypes."
+        cpic_note="CPIC: consider dose reduction in PM phenotypes.",
     ),
     "clopidogrel": DrugRule(
         name="Clopidogrel",
@@ -104,7 +104,7 @@ DRUG_RULES: dict[str, DrugRule] = {
         is_prodrug=True,
         alternatives=("Prasugrel", "Ticagrelor"),
         cpic_level=CpicLevel.STRONG,
-        cpic_note="CPIC: avoid in IM and PM CYP2C19 phenotypes."
+        cpic_note="CPIC: avoid in IM and PM CYP2C19 phenotypes.",
     ),
 }
 
@@ -184,15 +184,15 @@ def assess_prescription(
         )
 
     rule = DRUG_RULES[drug_key]
-    
+
     # Task 3: Multi-Enzyme Cross-Talk
     # Check all available profiles against the drug rule
     phenotypes = {p["gene"]: p["phenotype"] for p in patient["cyp_profiles"]}
-    
+
     pathways = [rule.pathway]
     cpic = rule.cpic_level.value
     alt = rule.alternatives[0] if rule.alternatives else None
-    
+
     # Initialize multi-risk aggregation
     risks: list[tuple[RiskLevel, str]] = []
 
@@ -200,17 +200,37 @@ def assess_prescription(
     primary_pheno = phenotypes.get(rule.enzyme)
     if primary_pheno:
         if "Ultra-Rapid" in primary_pheno and rule.is_prodrug:
-            risks.append((RiskLevel.CRITICAL, f"Ultra-rapid {rule.enzyme} metabolism leads to toxic metabolite spikes."))
+            risks.append(
+                (
+                    RiskLevel.CRITICAL,
+                    f"Ultra-rapid {rule.enzyme} metabolism leads to toxic metabolite spikes.",
+                )
+            )
         elif "Poor" in primary_pheno and rule.is_prodrug:
-            risks.append((RiskLevel.HIGH, f"Poor {rule.enzyme} metabolism leads to therapeutic failure (no activation)."))
+            risks.append(
+                (
+                    RiskLevel.HIGH,
+                    f"Poor {rule.enzyme} metabolism leads to therapeutic failure (no activation).",
+                )
+            )
         elif "Poor" in primary_pheno and not rule.is_prodrug and rule.enzyme != "—":
-            risks.append((RiskLevel.MODERATE, f"Poor {rule.enzyme} metabolism leads to increased drug exposure and toxicity risk."))
+            risks.append(
+                (
+                    RiskLevel.MODERATE,
+                    f"Poor {rule.enzyme} metabolism leads to increased drug exposure and toxicity risk.",
+                )
+            )
 
     # 2. Check Secondary Enzymes (e.g., CYP3A4 for Oxy/Hydro)
     if drug_key in ("oxycodone", "hydrocodone") and "CYP3A4" in phenotypes:
         c3a4 = phenotypes["CYP3A4"]
         if "Poor" in c3a4:
-            risks.append((RiskLevel.MODERATE, "Secondary CYP3A4 pathway is impaired, reducing drug clearance."))
+            risks.append(
+                (
+                    RiskLevel.MODERATE,
+                    "Secondary CYP3A4 pathway is impaired, reducing drug clearance.",
+                )
+            )
             pathways.append("Secondary pathway (CYP3A4) impaired")
 
     # 3. Handle specific drug logic (e.g., Clopidogrel)
@@ -218,7 +238,12 @@ def assess_prescription(
         c2c19 = phenotypes["CYP2C19"]
         if "Poor" in c2c19 or "Intermediate" in c2c19:
             level = RiskLevel.CRITICAL if "Poor" in c2c19 else RiskLevel.HIGH
-            risks.append((level, f"CYP2C19 {c2c19} phenotype: severely reduced antiplatelet activation."))
+            risks.append(
+                (
+                    level,
+                    f"CYP2C19 {c2c19} phenotype: severely reduced antiplatelet activation.",
+                )
+            )
 
     # Aggregate Risks
     if not risks:
@@ -236,22 +261,30 @@ def assess_prescription(
         )
 
     # Sort risks to find the highest
-    severity_map = {RiskLevel.NONE: 0, RiskLevel.LOW: 1, RiskLevel.MODERATE: 2, RiskLevel.HIGH: 3, RiskLevel.CRITICAL: 4}
-    
+    severity_map = {
+        RiskLevel.NONE: 0,
+        RiskLevel.LOW: 1,
+        RiskLevel.MODERATE: 2,
+        RiskLevel.HIGH: 3,
+        RiskLevel.CRITICAL: 4,
+    }
+
     # Fixed Bug #5: Guaranteed sorted_risks has at least one element due to the check above
     sorted_risks = sorted(risks, key=lambda x: severity_map[x[0]], reverse=True)
     max_risk_level, _ = sorted_risks[0]
-    
+
     # Combine summaries
     full_summary = " | ".join([r[1] for r in sorted_risks])
-    
+
     return RiskAssessment(
-        flagged=severity_map[max_risk_level] >= 3, # Flag High and Critical
+        flagged=severity_map[max_risk_level] >= 3,  # Flag High and Critical
         risk_level=max_risk_level,
         risk_summary=full_summary,
         pathways=pathways,
         recommended_alternative=alt,
-        alternative_rationale=f"Due to {max_risk_level.value} risk, consider switching to {alt}." if alt else "Consult specialist.",
+        alternative_rationale=f"Due to {max_risk_level.value} risk, consider switching to {alt}."
+        if alt
+        else "Consult specialist.",
         cpic_note=rule.cpic_note or f"CPIC: {rule.name} guidelines apply.",
         cpic_level=cpic,
     )

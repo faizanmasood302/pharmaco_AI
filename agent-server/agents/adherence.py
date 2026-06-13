@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import os
 import json
 import logging
+import os
+
 from dotenv import load_dotenv
 
-from db.supabase import create_adherence_plan, get_adherence_plan, submit_check_in
 from config import GROQ_MODEL
+from db.supabase import create_adherence_plan, get_adherence_plan, submit_check_in
 
 logger = logging.getLogger(__name__)
 

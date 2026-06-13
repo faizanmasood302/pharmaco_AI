@@ -30,15 +30,20 @@ def test_generate_clinical_note_fallback():
                     gene="CYP2D6",
                     diplotype="*1/*1xN",
                     phenotype="Ultra-Rapid Metabolizer",
-                    activity_score="2.0"
+                    activity_score="2.0",
                 )
-            ]
+            ],
         ),
         agent_steps=[
-            AgentStep(agent="Research", status="complete", summary="Found patient", duration_ms=10)
-        ]
+            AgentStep(
+                agent="Research",
+                status="complete",
+                summary="Found patient",
+                duration_ms=10,
+            )
+        ],
     )
-    
+
     # This should work even without Groq API key (fallback)
     note = generate_clinical_note(eval_resp)
     assert "PHARMACOGENOMIC" in note.upper()
@@ -47,6 +52,7 @@ def test_generate_clinical_note_fallback():
     assert "CODEINE" in note.upper()
     assert "ULTRA-RAPID METABOLIZER" in note.upper()
     assert "DULOXETINE" in note.upper()
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

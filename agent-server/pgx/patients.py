@@ -12,13 +12,14 @@ class CypProfile(TypedDict):
     activity_score: str
 
 
-class PatientRecord(TypedDict):
+class PatientRecord(TypedDict, total=False):
     id: str
     display_name: str
     age: int
     sex: str
     indication: str
     cyp_profiles: list[CypProfile]
+    current_medications: list[str]
 
 
 PATIENTS: dict[str, PatientRecord] = {
@@ -64,6 +65,21 @@ PATIENTS: dict[str, PatientRecord] = {
                 "diplotype": "*1/*2",
                 "phenotype": "Normal Metabolizer",
                 "activity_score": "1.5 (normal)",
+            },
+        ],
+    },
+    "PGX-004": {
+        "id": "PGX-004",
+        "display_name": "Muhammad Faizan",
+        "age": 36,
+        "sex": "M",
+        "indication": "Severe acute pain post-injury",
+        "cyp_profiles": [
+            {
+                "gene": "CYP2D6",
+                "diplotype": "*1/*1xN",
+                "phenotype": "Ultra-Rapid Metabolizer",
+                "activity_score": "2.25 (increased)",
             },
         ],
     },

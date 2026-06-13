@@ -11,7 +11,12 @@ import TherapySimulationPanel from "@/components/TherapySimulationPanel";
 import Icon from "@/components/Icon";
 import MetabolicScene from "@/components/MetabolicScene";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import type { EvaluationResult, PatientListItem, Medication } from "@/lib/types";
+import type {
+  ClinicalReport,
+  EvaluationResult,
+  Medication,
+  PatientListItem,
+} from "@/lib/types";
 import { EvaluationResultSchema } from "@/lib/schema";
 import { authClient } from "@/lib/auth-client";
 
@@ -50,7 +55,7 @@ export default function Home() {
   const [clinicalNoteDate, setClinicalNoteDate] = useState<string | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [patientReports, setPatientReports] = useState<any[]>([]);
+  const [patientReports, setPatientReports] = useState<ClinicalReport[]>([]);
   const [reportsLoading, setPatientReportsLoading] = useState(false);
 
   // CHANGE: Fetch reports when patient changes or tab switches to REPORTS
@@ -130,6 +135,7 @@ export default function Home() {
       .catch(() => {
         if (cancelled) return;
         setPatients([
+          { id: "PGX-004", display_name: "Alex Rivera", indication: "Severe acute pain post-injury", phenotype: "Ultra-Rapid Metabolizer" },
           { id: "PGX-001", display_name: "Maria Chen", indication: "Chronic neuropathic pain", phenotype: "Ultra-Rapid Metabolizer" },
           { id: "PGX-002", display_name: "James Okonkwo", indication: "Severe osteoarthritis", phenotype: "Poor Metabolizer" },
           { id: "PGX-003", display_name: "Sarah Patel", indication: "Post-surgical acute pain", phenotype: "Normal Metabolizer" },
@@ -476,7 +482,7 @@ export default function Home() {
                   <div className="flex items-center justify-between mb-10 border-b border-outline-variant/20 pb-6">
                     <div>
                       <h2 className="text-2xl font-bold text-on-surface">Agent Execution Stream</h2>
-                      <p className="text-sm text-on-surface-variant mt-1">Live orchestration of specialized clinical intelligence modules. Retrieval, reasoning, critique, and reporting are followed by an explicit clinician gate.</p>
+                      <p className="text-sm text-on-surface-variant mt-1">Prototype orchestration of specialized research simulation modules. Retrieval, reasoning, critique, and reporting are followed by an explicit human review gate.</p>
                     </div>
                     {result && (
                       <div className="px-4 py-2 bg-primary/10 rounded-full border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-widest">
@@ -555,7 +561,7 @@ export default function Home() {
                     <div className="py-20 text-center text-on-surface-variant">
                        <Icon name="insights" className="mx-auto mb-4 h-12 w-12 opacity-10" />
                        <p className="font-bold">No Active Stream</p>
-                       <p className="mt-1 text-xs">Run a prescription evaluation to monitor agent logic in real-time.</p>
+                       <p className="mt-1 text-xs">Run a prescription evaluation to inspect the agent logic trace.</p>
                     </div>
                   )}
                </div>
@@ -608,7 +614,7 @@ export default function Home() {
                             }`}
                           >
                             <div className="flex justify-between items-start">
-                              <span className="text-xs font-bold text-on-surface">EHR Document</span>
+                              <span className="text-xs font-bold text-on-surface">Draft Report</span>
                               <span className="text-[9px] font-mono text-on-surface-variant/40">
                                 {new Date(report.created_at).toLocaleDateString()}
                               </span>
@@ -632,7 +638,7 @@ export default function Home() {
                     <div className="flex items-center justify-between mb-10 border-b border-outline-variant/20 pb-6 shrink-0">
                       <div>
                         <h2 className="text-2xl font-bold text-on-surface">Clinical PGx Documentation</h2>
-                        <p className="text-sm text-on-surface-variant mt-1">Formal structured reports for Electronic Health Record (EHR) integration.</p>
+                        <p className="text-sm text-on-surface-variant mt-1">Prototype structured reports for simulated review workflows.</p>
                       </div>
                       {clinicalNote && (
                         <button className="bg-primary text-on-primary text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded shadow-sm hover:bg-primary/90 transition-all flex items-center gap-2">
@@ -663,8 +669,8 @@ export default function Home() {
                               {clinicalNote}
                            </pre>
                            <div className="mt-20 pt-10 border-t border-outline-variant/20 flex justify-between items-end italic text-[10px] text-on-surface-variant/40">
-                              <div>Generated by AI Agent: Orchestrator v2.4</div>
-                              <div>Confidential Clinical Record</div>
+                              <div>Generated by research simulation orchestrator</div>
+                              <div>Synthetic demo record - not for clinical use</div>
                            </div>
                         </div>
                       </div>
@@ -672,7 +678,7 @@ export default function Home() {
                       <div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant opacity-40">
                          <Icon name="description" className="mb-4 h-14 w-14" />
                          <p className="font-bold">Document Not Finalized</p>
-                         <p className="mt-1 text-xs max-w-xs text-center">Generate an EHR note in the Prescription Console to view and finalize the structured report here.</p>
+                         <p className="mt-1 text-xs max-w-xs text-center">Generate a draft note in the Prescription Console to review the structured report here.</p>
                       </div>
                     )}
                  </div>
@@ -684,7 +690,7 @@ export default function Home() {
             <div className="max-w-6xl mx-auto space-y-6">
                <div className="mb-8">
                   <h2 className="text-2xl font-bold text-on-surface">Adherence Triage Center</h2>
-                  <p className="text-sm text-on-surface-variant mt-1">Active surveillance of patient outcomes and automated risk assessment.</p>
+                  <p className="text-sm text-on-surface-variant mt-1">Simulated adherence follow-up and deterministic risk triage for prototype review.</p>
                </div>
 
                {result && adherenceApproved ? (

@@ -24,7 +24,7 @@ def research_patient(patient_id: str) -> tuple[PatientRecord | None, str, int]:
     profile = patient["cyp_profiles"][0]
     phenotype = profile["phenotype"]
     gene = profile["gene"]
-    
+
     summary = (
         f"Retrieved FHIR-linked profile for {patient['display_name']}: "
         f"{gene} {phenotype}."
