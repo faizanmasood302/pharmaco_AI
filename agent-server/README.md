@@ -1,3 +1,12 @@
+---
+title: PGx Agent Server
+emoji: 🧬
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # Agent Server
 
 FastAPI backend for the pharmacogenomic agent harness.
