@@ -1,0 +1,48 @@
+name: Sync agent-server to Hugging Face Hub
+on:
+  push:
+    branches: [main]
+    # Only trigger if files in the agent-server folder are modified
+    paths:
+      - 'agent-server/**'
+
+  # to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  sync-to-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push agent-server directory to Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          # Configure Git
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          
+          # Clone the Hugging Face space repository into a temporary folder
+          git clone https://faizanmasood:$HF_TOKEN@huggingface.co/spaces/faizanmasood/pgx-agent-server hf-space
+          
+          # Remove everything currently in the space (except .git) so we do a clean sync
+          cd hf-space
+          rm -rf *
+          
+          # Copy the contents of agent-server from the GitHub repo into the space folder
+          cp -r ../agent-server/* ./
+          
+          # Commit and push
+          git add .
+          
+          # We only commit and push if there are actual changes
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "Auto-sync agent-server from GitHub"
+            git push https://faizanmasood:$HF_TOKEN@huggingface.co/spaces/faizanmasood/pgx-agent-server main
+          else
+            echo "No changes to sync"
+          fi
