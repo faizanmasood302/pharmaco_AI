@@ -14,8 +14,10 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
-  // trustHost is required for Vercel/HuggingFace proxied environments
-  trustHost: true,
+  // trustHost is required for Vercel/proxied environments
+  advanced: {
+    trustHost: true,
+  },
   // Ensure the base URL is correct for your environment
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   secret: process.env.BETTER_AUTH_SECRET,
