@@ -26,12 +26,12 @@ const SESSION_COOKIE_VARIANTS = [
   "_Secure-better-auth.session_token",
 ];
 
-export function getSessionCookieFromRequest(request: { cookies: { get: (name: string) => { value?: string } | undefined } }): string | null {
+export function getSessionCookieFromRequest(request: { cookies: { get: (name: string) => { value?: string } | undefined } }): string | undefined {
   for (const name of SESSION_COOKIE_VARIANTS) {
     const cookie = request.cookies.get(name);
     if (cookie?.value) return cookie.value;
   }
-  return null;
+  return undefined;
 }
 
 export async function getAuthToken(): Promise<string | null> {
