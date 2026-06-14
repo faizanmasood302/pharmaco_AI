@@ -21,6 +21,13 @@ logger = logging.getLogger(__name__)
 BETTER_AUTH_SECRET = (os.environ.get("BETTER_AUTH_SECRET") or "").strip()
 DATABASE_URL = (os.environ.get("DATABASE_URL") or "").strip()
 
+print(
+    f"AUTH_INIT: secret_len={len(BETTER_AUTH_SECRET)} "
+    f"secret_start={BETTER_AUTH_SECRET[:8] if BETTER_AUTH_SECRET else 'EMPTY'} "
+    f"db_set={bool(DATABASE_URL)}",
+    flush=True,
+)
+
 
 def _unsign_hono(signed_value: str, secret: str) -> str | None:
     """Extract original value from a better-call/Hono-style signed cookie.
@@ -78,6 +85,8 @@ def verify_token(
     if not raw_token:
         raise AuthFailedError("Session token cannot be empty")
 
+    import sys
+    print(f"AUTH_DEBUG: token_len={len(raw_token)} token_start={raw_token[:50] if raw_token else 'NONE'} secret_set={bool(BETTER_AUTH_SECRET)} db_set={bool(DATABASE_URL)} has_dot={'.' in raw_token if raw_token else False}", flush=True)
     logger.info("Validating session token, len=%d, preview=%s..", len(raw_token), raw_token[:60])
 
     # 1) Try direct JWT decode (standard 3-segment JWT)
