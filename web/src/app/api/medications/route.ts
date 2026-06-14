@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { proxyGet } from "@/lib/api";
+import { proxyGet, getSessionCookieFromRequest } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get("better-auth.session_token")?.value;
+  const token = getSessionCookieFromRequest(request);
   try {
     const data = await proxyGet("/api/medications", token);
     return NextResponse.json(data);

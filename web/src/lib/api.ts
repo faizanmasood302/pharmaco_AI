@@ -20,16 +20,32 @@ async function fetchWithTimeout(url: string, options: RequestInit & { timeout?: 
   }
 }
 
+const SESSION_COOKIE_VARIANTS = [
+  "better-auth.session_token",
+  "__Secure-better-auth.session_token",
+  "_Secure-better-auth.session_token",
+];
+
+export function getSessionCookieFromRequest(request: { cookies: { get: (name: string) => { value?: string } | undefined } }): string | null {
+  for (const name of SESSION_COOKIE_VARIANTS) {
+    const cookie = request.cookies.get(name);
+    if (cookie?.value) return cookie.value;
+  }
+  return null;
+}
+
 export async function getAuthToken(): Promise<string | null> {
   if (typeof window !== "undefined") {
-    // Client-side: use authClient (document.cookie can't read HttpOnly cookies)
     const { data } = await authClient.getSession();
     return data?.session?.token ?? null;
   } else {
-    // Server-side: Next.js cookies() can read HttpOnly cookies
     const { cookies } = await import("next/headers");
     const cookieStore = await cookies();
-    return cookieStore.get("better-auth.session_token")?.value ?? null;
+    for (const name of SESSION_COOKIE_VARIANTS) {
+      const cookie = cookieStore.get(name);
+      if (cookie?.value) return cookie.value;
+    }
+    return null;
   }
 }
 

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { proxyGet } from "@/lib/api";
+import { proxyGet, getSessionCookieFromRequest } from "@/lib/api";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ evaluationId: string }> }
+  { params }: { params: { evaluationId: string } }
 ) {
-  const token = request.cookies.get("better-auth.session_token")?.value;
+  const token = getSessionCookieFromRequest(request);
   const { evaluationId } = await params;
 
   try {
