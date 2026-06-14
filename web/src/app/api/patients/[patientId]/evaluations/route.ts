@@ -3,7 +3,7 @@ import { proxyGet, getSessionCookieFromRequest } from "@/lib/api";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { patientId: string } }
+  { params }: { params: Promise<{ patientId: string }> }
 ) {
   const token = getSessionCookieFromRequest(request);
   const { patientId } = await params;
