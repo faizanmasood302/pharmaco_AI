@@ -9,6 +9,7 @@ FROM python:3.12-slim
 RUN useradd -m -u 1000 appuser
 WORKDIR /app
 COPY --from=builder /app/.venv .venv
+ARG CACHEBUST=1
 COPY . .
 USER appuser
 ENV PATH="/app/.venv/bin:$PATH"
