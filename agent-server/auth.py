@@ -1,6 +1,8 @@
 import logging
+import os
 from datetime import UTC, datetime
 
+import psycopg2
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -11,37 +13,11 @@ security = HTTPBearer()
 logger = logging.getLogger(__name__)
 
 
-def verify_token(
-    credentials: HTTPAuthorizationCredentials | None = Depends(security),
-) -> str:
-    """
-    Verify BetterAuth session token against the Supabase database.
-    BetterAuth session tokens are opaque strings stored in the 'session' table.
-
-    Security Notes:
-    - Tokens are validated server-side against the Supabase session table
-    - Expired sessions are rejected
-    - Invalid tokens receive generic error messages (no information leakage)
-    """
-    if not credentials or not credentials.credentials:
-        raise AuthFailedError("Authorization header missing or malformed")
-
-    raw_token = credentials.credentials
-    # BetterAuth tokens can be signed (value.signature).
-    # The DB only stores the 'value' part before the first dot.
-    token = raw_token.strip().strip('"').strip("'").split(".")[0]
-
-    logger.info("Validating session token")
-
-    if not token:
-        raise AuthFailedError("Session token cannot be empty")
-
+def _verify_via_supabase(token: str) -> str | None:
     supabase = get_admin_client()
     if not supabase:
-        raise AuthFailedError("Authentication service unavailable")
-
+        return None
     try:
-        # Query the session table using the parsed base token
         result = (
             supabase.table("session")
             .select("userId, expiresAt")
@@ -49,12 +25,9 @@ def verify_token(
             .maybe_single()
             .execute()
         )
-
         if not result or not result.data:
-            logger.warning("Session not found or expired")
-            raise AuthFailedError("Invalid or expired session. Please log in again.")
+            return None
 
-        # Check expiration
         expires_at_raw = result.data.get("expiresAt")
         if expires_at_raw:
             from dateutil import parser
@@ -64,28 +37,66 @@ def verify_token(
                     expires_at = datetime.fromtimestamp(expires_at_raw / 1000, UTC)
                 else:
                     expires_at = parser.isoparse(str(expires_at_raw))
-
                 if expires_at < datetime.now(UTC):
-                    logger.info(f"Session expired for user {result.data.get('userId')}")
-                    raise AuthFailedError("Session expired. Please log in again.")
-            except AuthFailedError:
-                raise
-            except Exception as parse_err:
-                logger.warning(
-                    f"Failed to parse session expiry {expires_at_raw}: {parse_err}"
-                )
-                raise AuthFailedError(
-                    "Session validation error. Please log in again."
-                ) from parse_err
+                    logger.info(
+                        f"Supabase session expired for user {result.data.get('userId')}"
+                    )
+                    return None
+            except Exception:
+                return None
 
         user_id = result.data.get("userId")
-        if not user_id:
-            logger.warning("Session found but no userId present")
-            raise AuthFailedError("Invalid session data. Please log in again.")
-
         return user_id
-    except AuthFailedError:
-        raise
     except Exception as exc:
-        logger.error(f"Session verification failed: {exc}", exc_info=True)
-        raise AuthFailedError("Authentication error. Please log in again.") from exc
+        logger.warning("Supabase session verification failed: %s", exc)
+        return None
+
+
+def _verify_via_local_pg(token: str) -> str | None:
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        return None
+    try:
+        conn = psycopg2.connect(db_url)
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'SELECT "userId", "expiresAt" FROM session WHERE token = %s',
+                    (token,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                user_id, expires_at = row
+                if expires_at and expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
+                    logger.info(f"Local session expired for user {user_id}")
+                    return None
+                return user_id
+    except Exception as exc:
+        logger.warning("Local PG session verification failed: %s", exc)
+        return None
+
+
+def verify_token(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> str:
+    if not credentials or not credentials.credentials:
+        raise AuthFailedError("Authorization header missing or malformed")
+
+    raw_token = credentials.credentials
+    token = raw_token.strip().strip('"').strip("'").split(".")[0]
+
+    logger.info("Validating session token")
+
+    if not token:
+        raise AuthFailedError("Session token cannot be empty")
+
+    user_id = _verify_via_supabase(token)
+    if user_id:
+        return user_id
+
+    user_id = _verify_via_local_pg(token)
+    if user_id:
+        return user_id
+
+    raise AuthFailedError("Invalid or expired session. Please log in again.")

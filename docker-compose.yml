@@ -1,4 +1,19 @@
 services:
+  ba-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ba_auth
+      POSTGRES_PASSWORD: localdev
+    ports:
+      - "5433:5432"
+    volumes:
+      - ba-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   agent-server:
     build: ./agent-server
     ports:
@@ -7,6 +22,9 @@ services:
       - ./agent-server/.env
     volumes:
       - ./agent-server/vault:/app/vault
+    depends_on:
+      ba-db:
+        condition: service_healthy
 
   web-frontend:
     build: ./web
@@ -16,3 +34,6 @@ services:
       - AGENT_SERVER_URL=http://agent-server:8000
     depends_on:
       - agent-server
+
+volumes:
+  ba-pgdata:

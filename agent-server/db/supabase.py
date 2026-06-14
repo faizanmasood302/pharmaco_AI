@@ -99,12 +99,13 @@ def save_clinical_report(
 
 def get_clinical_reports_by_patient(patient_id: str) -> list[dict[str, Any]]:
     """Get all clinical reports for a patient."""
-    if _local_reports:
-        return [r for r in _local_reports.values() if r["patient_id"] == patient_id]
+    local = [r for r in _local_reports.values() if r["patient_id"] == patient_id]
+    if local:
+        return local
 
     client = get_admin_client()
     if client is None:
-        return []
+        return local
 
     try:
         result = (
@@ -117,7 +118,7 @@ def get_clinical_reports_by_patient(patient_id: str) -> list[dict[str, Any]]:
         return result.data
     except Exception as exc:
         logger.warning("Supabase clinical reports lookup failed: %s", exc)
-        return []
+        return local
 
 
 _local_medications = {}
@@ -250,15 +251,18 @@ def save_evaluation(
 
 
 def list_evaluations(patient_id: str, limit: int = 5) -> list[dict]:
-    client = get_admin_client()
-    if client is None:
-        rows = [
-            row
-            for row in _local_evaluations.values()
-            if row["patient_id"] == patient_id.upper()
-        ]
+    rows = [
+        row
+        for row in _local_evaluations.values()
+        if row["patient_id"] == patient_id.upper()
+    ]
+    if rows:
         rows.sort(key=lambda row: row.get("created_at", ""), reverse=True)
         return rows[:limit]
+
+    client = get_admin_client()
+    if client is None:
+        return []
     try:
         result = (
             client.table("evaluations")
@@ -271,7 +275,13 @@ def list_evaluations(patient_id: str, limit: int = 5) -> list[dict]:
         return result.data
     except Exception as exc:
         logger.warning("Supabase evaluation list failed: %s", exc)
-        return []
+        rows = [
+            row
+            for row in _local_evaluations.values()
+            if row["patient_id"] == patient_id.upper()
+        ]
+        rows.sort(key=lambda row: row.get("created_at", ""), reverse=True)
+        return rows[:limit]
 
 
 def get_evaluation_by_id(evaluation_id: str) -> dict[str, Any] | None:

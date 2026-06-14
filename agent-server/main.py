@@ -45,7 +45,7 @@ from db.supabase import (
     update_therapy_decision,
     upsert_patient,
 )
-from exceptions import AuthFailedError, InternalServerError, PharmacogenomicError
+from exceptions import InternalServerError, PharmacogenomicError
 from fhir.parser import parse_fhir_bundle
 
 # setup_logging and request_id_var already imported above

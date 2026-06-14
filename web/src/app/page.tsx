@@ -58,9 +58,8 @@ export default function Home() {
   const [patientReports, setPatientReports] = useState<ClinicalReport[]>([]);
   const [reportsLoading, setPatientReportsLoading] = useState(false);
 
-  // CHANGE: Fetch reports when patient changes or tab switches to REPORTS
   useEffect(() => {
-    if (isAuthenticating || !patientId) return;
+    if (!patientId) return;
 
     async function fetchReports() {
       setPatientReportsLoading(true);
@@ -78,9 +77,9 @@ export default function Home() {
     }
 
     fetchReports();
-  }, [patientId, isAuthenticating, historyKey]);
+  }, [patientId, historyKey]);
 
-  // Authentication guard...
+  // Authentication guard
   useEffect(() => {
     let cancelled = false;
 
@@ -90,17 +89,14 @@ export default function Home() {
         if (cancelled) return;
 
         if (!session || !session.data) {
-          // Not authenticated, redirect to login
           router.push("/login");
           return;
         }
 
-        // Authenticated, proceed with data fetching
         setIsAuthenticating(false);
       } catch (err) {
         if (cancelled) return;
         console.error("Auth check failed:", err);
-        // On error, redirect to login for security
         router.push("/login");
       }
     };
@@ -115,7 +111,6 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
 
-    // Only fetch data after auth check is complete and user is authenticated
     if (isAuthenticating) return;
 
     // Fetch patients
@@ -287,7 +282,6 @@ export default function Home() {
   const adherenceApproved = humanGateStatus === "approved";
   const humanGateLabel = humanGateStatus ? humanGateStatus.replaceAll("_", " ") : "pending";
 
-  // Show loading screen while checking authentication
   if (isAuthenticating) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
