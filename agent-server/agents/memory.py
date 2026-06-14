@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from dotenv import load_dotenv
 
 from config import GROQ_MODEL
-from db.supabase import list_check_ins_for_patient, list_evaluations
+from db.database import list_check_ins_for_patient, list_evaluations
 
 load_dotenv()
 

@@ -1,6 +1,6 @@
 from agents.therapy_orchestrator import orchestrate_therapy_generation
 from agents.validation import validate_research_mrna_candidate
-from db.supabase import get_therapy_request_by_id
+from db.database import get_therapy_request_by_id
 
 
 def test_therapy_generation_graph_returns_research_review_packet():

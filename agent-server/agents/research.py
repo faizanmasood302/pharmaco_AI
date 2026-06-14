@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from db.supabase import get_patient_by_id
+from db.database import get_patient_by_id
 from exceptions import InvalidPhenotypeError, PatientNotFoundError
 from pgx.patients import PatientRecord
 

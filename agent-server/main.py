@@ -33,7 +33,7 @@ from agents.orchestrator import orchestrate
 from agents.reporter import generate_clinical_note
 from agents.therapy_orchestrator import orchestrate_therapy_generation
 from auth import verify_token
-from db.supabase import (
+from db.database import (
     get_clinical_reports_by_patient,
     is_configured,
     list_all_patients,

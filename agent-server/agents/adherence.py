@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 
 from config import GROQ_MODEL
-from db.supabase import create_adherence_plan, get_adherence_plan, submit_check_in
+from db.database import create_adherence_plan, get_adherence_plan, submit_check_in
 
 logger = logging.getLogger(__name__)
 

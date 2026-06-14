@@ -6,53 +6,13 @@ import psycopg2
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from db.supabase import get_admin_client
 from exceptions import AuthFailedError
 
 security = HTTPBearer()
 logger = logging.getLogger(__name__)
 
 
-def _verify_via_supabase(token: str) -> str | None:
-    supabase = get_admin_client()
-    if not supabase:
-        return None
-    try:
-        result = (
-            supabase.table("session")
-            .select("userId, expiresAt")
-            .eq("token", token)
-            .maybe_single()
-            .execute()
-        )
-        if not result or not result.data:
-            return None
-
-        expires_at_raw = result.data.get("expiresAt")
-        if expires_at_raw:
-            from dateutil import parser
-
-            try:
-                if isinstance(expires_at_raw, (int, float)):
-                    expires_at = datetime.fromtimestamp(expires_at_raw / 1000, UTC)
-                else:
-                    expires_at = parser.isoparse(str(expires_at_raw))
-                if expires_at < datetime.now(UTC):
-                    logger.info(
-                        f"Supabase session expired for user {result.data.get('userId')}"
-                    )
-                    return None
-            except Exception:
-                return None
-
-        user_id = result.data.get("userId")
-        return user_id
-    except Exception as exc:
-        logger.warning("Supabase session verification failed: %s", exc)
-        return None
-
-
-def _verify_via_local_pg(token: str) -> str | None:
+def _verify_session(token: str) -> str | None:
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
         return None
@@ -91,11 +51,7 @@ def verify_token(
     if not token:
         raise AuthFailedError("Session token cannot be empty")
 
-    user_id = _verify_via_supabase(token)
-    if user_id:
-        return user_id
-
-    user_id = _verify_via_local_pg(token)
+    user_id = _verify_session(token)
     if user_id:
         return user_id
 

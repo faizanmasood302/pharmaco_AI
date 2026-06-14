@@ -16,19 +16,18 @@ from pgx.patients import PatientRecord
 def isolate_external_services(monkeypatch):
     """Keep tests deterministic and offline even when Supabase env vars are set."""
     import agents.agentic as agentic
-    import db.supabase as supabase
+    import db.database as db
 
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     monkeypatch.setattr(agentic, "_groq", None)
-    monkeypatch.setattr(supabase, "_client", None)
-    monkeypatch.setattr(supabase, "_admin_client", None)
-    supabase._local_evaluations.clear()
-    supabase._local_plans.clear()
-    supabase._local_check_ins.clear()
-    supabase._local_therapy_requests.clear()
-    supabase._local_therapy_candidates.clear()
-    supabase._local_therapy_validation_results.clear()
-    supabase._local_therapy_audit_events.clear()
+    monkeypatch.setattr(db, "DATABASE_URL", "")
+    db._local_evaluations.clear()
+    db._local_plans.clear()
+    db._local_check_ins.clear()
+    db._local_therapy_requests.clear()
+    db._local_therapy_candidates.clear()
+    db._local_therapy_validation_results.clear()
+    db._local_therapy_audit_events.clear()
 
 
 @pytest.fixture

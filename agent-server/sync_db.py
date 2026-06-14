@@ -5,7 +5,7 @@ import sys
 # Add agent-server to path so we can import modules
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from db.supabase import upsert_patient
+from db.database import upsert_patient
 from pgx.patients import PATIENTS
 
 logger = logging.getLogger(__name__)

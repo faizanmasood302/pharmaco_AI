@@ -1,9 +1,14 @@
+import json
 import logging
+import os
 from typing import Any
 
+import psycopg2
+from dotenv import load_dotenv
 from fastapi import Request
 
-from db.supabase import _client as supabase_client
+load_dotenv()
+DATABASE_URL = (os.environ.get("DATABASE_URL") or "").strip()
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +26,7 @@ def log_audit(
     This function is designed to never fail the main execution thread;
     it catches its own exceptions and logs them to stderr if the DB is unreachable.
     """
-    if supabase_client is None:
-        # If running in local/demo mode without Supabase, just emit structured logs.
+    if not DATABASE_URL:
         logger.info(
             "Audit event (Local Mode)",
             extra={
@@ -39,27 +43,36 @@ def log_audit(
         ip_address = None
         user_agent = None
 
-        if request:
-            ip_address = request.client.host if request.client else None
+        if request and request.client:
+            raw_ip = request.client.host
+            # Only store if it looks like a valid IP (not 'testclient' etc.)
+            if raw_ip and ('.' in raw_ip or ':' in raw_ip):
+                ip_address = raw_ip
             user_agent = request.headers.get("user-agent")
 
-        audit_record = {
-            "user_id": user_id,
-            "action": action,
-            "patient_id": patient_id,
-            "resource_id": resource_id,
-            "details": details or {},
-            "ip_address": ip_address,
-            "user_agent": user_agent,
-        }
-
-        supabase_client.table("audit_logs").insert(audit_record).execute()
+        conn = psycopg2.connect(DATABASE_URL)
+        try:
+            with conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """INSERT INTO audit_logs (user_id, action, patient_id, resource_id, details, ip_address, user_agent)
+                           VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s)""",
+                        (
+                            user_id,
+                            action,
+                            patient_id,
+                            resource_id,
+                            json.dumps(details or {}),
+                            ip_address,
+                            user_agent,
+                        ),
+                    )
+        finally:
+            conn.close()
 
     except Exception as e:
-        # CRITICAL: We must not break the clinical flow just because logging failed,
-        # but we must loudly report the failure for DevOps.
         logger.error(
             "CRITICAL: Failed to write to audit_logs table",
-            extra={"error": str(e), "attempted_record": audit_record},
+            extra={"error": str(e), "action": action, "user_id": user_id},
             exc_info=True,
         )

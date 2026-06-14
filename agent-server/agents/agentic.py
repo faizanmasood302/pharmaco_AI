@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from agents.knowledge import retrieve_clinical_evidence
 from agents.research import research_patient
 from config import GROQ_MODEL
-from db.supabase import save_evaluation
+from db.database import save_evaluation
 from models import (
     AgentStep,
     AuditEvent,

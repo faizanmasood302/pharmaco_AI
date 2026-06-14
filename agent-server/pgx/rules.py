@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from db.supabase import get_patient_by_id
+from db.database import get_patient_by_id
 from pgx.patients import PatientRecord
 
 
