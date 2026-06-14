@@ -11,6 +11,7 @@ import TherapySimulationPanel from "@/components/TherapySimulationPanel";
 import Icon from "@/components/Icon";
 import MetabolicScene from "@/components/MetabolicScene";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { useToast } from "@/components/Toast";
 import type {
   ClinicalReport,
   EvaluationResult,
@@ -57,6 +58,7 @@ export default function Home() {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [patientReports, setPatientReports] = useState<ClinicalReport[]>([]);
   const [reportsLoading, setPatientReportsLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!patientId) return;
@@ -192,12 +194,12 @@ export default function Home() {
     }
   };
 
-  // CHANGE 1: Clear results handler
   const handleClearResults = () => {
     setResult(null);
     setClinicalNote(null);
     setClinicalNoteDate(null);
     setError(null);
+    toast("Results cleared", "info");
   };
 
   async function handleEvaluate() {
@@ -222,13 +224,16 @@ export default function Home() {
       const validatedData = EvaluationResultSchema.parse(data);
       setResult(validatedData as EvaluationResult);
       setHistoryKey((k) => k + 1);
+      toast("Evaluation complete — review results below", "success");
     } catch (err: unknown) {
       console.error("Evaluation Error:", err);
       // Differentiate between Zod schema errors and network errors
       if (err instanceof Error && err.name === "ZodError") {
         setError("Invalid data received from the clinical agent server.");
+        toast("Invalid data from agent server", "error");
       } else {
         setError("Network error. Is the agent server running?");
+        toast("Agent server unreachable", "error");
       }
     } finally {
       setLoading(false);
@@ -267,6 +272,7 @@ export default function Home() {
       setResult(validatedData as EvaluationResult);
       setHistoryKey((k) => k + 1);
       setError(null);
+      toast(`Decision recorded: ${decision}`, decision === "approved" ? "success" : "info");
       return true;
     } catch (err: unknown) {
       console.error("Review decision error:", err);
@@ -285,8 +291,11 @@ export default function Home() {
   if (isAuthenticating) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Icon name="progress_activity" className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-5 animate-fade-in-up">
+          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
+            <Icon name="biotech" className="h-7 w-7 text-primary" />
+          </div>
+          <Icon name="progress_activity" className="h-6 w-6 animate-spin text-primary" />
           <p className="text-on-surface-variant text-sm font-medium">Verifying credentials...</p>
         </div>
       </div>
@@ -434,14 +443,18 @@ export default function Home() {
                   />
                 </ErrorBoundary>
                 {loading ? (
-                  <div className="glass-card rounded-xl p-10 space-y-6 animate-pulse">
-                     <div className="h-10 bg-outline-variant/20 rounded w-3/4"></div>
-                     <div className="h-4 bg-outline-variant/10 rounded w-full"></div>
-                     <div className="h-4 bg-outline-variant/10 rounded w-5/6"></div>
+                  <div className="glass-card rounded-xl p-10 space-y-6 animate-fade-in-up">
+                     <div className="flex items-center gap-3 mb-2">
+                       <Icon name="progress_activity" className="h-5 w-5 animate-spin text-primary" />
+                       <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Analyzing</span>
+                     </div>
+                     <div className="h-10 bg-gradient-to-r from-outline-variant/20 via-outline-variant/10 to-outline-variant/20 rounded animate-pulse w-3/4"></div>
+                     <div className="h-4 bg-gradient-to-r from-outline-variant/10 via-outline-variant/5 to-outline-variant/10 rounded animate-pulse w-full"></div>
+                     <div className="h-4 bg-gradient-to-r from-outline-variant/10 via-outline-variant/5 to-outline-variant/10 rounded animate-pulse w-5/6"></div>
                      <div className="grid grid-cols-3 gap-4 pt-4">
-                        <div className="h-20 bg-outline-variant/5 rounded"></div>
-                        <div className="h-20 bg-outline-variant/5 rounded"></div>
-                        <div className="h-20 bg-outline-variant/5 rounded"></div>
+                        <div className="h-20 bg-gradient-to-b from-outline-variant/10 to-outline-variant/5 rounded animate-pulse"></div>
+                        <div className="h-20 bg-gradient-to-b from-outline-variant/10 to-outline-variant/5 rounded animate-pulse"></div>
+                        <div className="h-20 bg-gradient-to-b from-outline-variant/10 to-outline-variant/5 rounded animate-pulse"></div>
                      </div>
                   </div>
                 ) : result ? (
@@ -456,13 +469,25 @@ export default function Home() {
                     />
                   </ErrorBoundary>
                 ) : (
-                  <div className="glass-card rounded-xl border-dashed p-16 text-center text-sm text-on-surface-variant flex flex-col items-center gap-6 bg-surface/30">
-                    <div className="w-16 h-16 rounded-full bg-background flex items-center justify-center text-outline/30">
-                      <Icon name="biotech" className="h-10 w-10" />
+                  <div className="glass-card rounded-xl border-dashed p-16 text-center text-sm text-on-surface-variant flex flex-col items-center gap-6 bg-surface/30 animate-fade-in-up">
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/5 to-secondary/5 flex items-center justify-center border border-primary/10">
+                      <Icon name="biotech" className="h-10 w-10 text-primary/40" />
                     </div>
-                    <div>
-                      <p className="font-bold text-on-surface">System Ready</p>
-                      <p className="mt-1 opacity-60">Select a patient profile to begin orchestrated genomic analysis.</p>
+                    <div className="max-w-sm">
+                      <p className="font-bold text-on-surface text-base">System Ready</p>
+                      <p className="mt-2 text-sm text-on-surface-variant/60 leading-relaxed">
+                        Select a patient profile and proposed therapy, then run a precision evaluation to initiate the multi-agent pipeline.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-6 pt-2">
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest">
+                        <Icon name="check_circle" className="h-3.5 w-3.5 text-primary/50" />
+                        Pipeline Ready
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest">
+                        <Icon name="check_circle" className="h-3.5 w-3.5 text-primary/50" />
+                        Human Gate Active
+                      </div>
                     </div>
                   </div>
                 )}

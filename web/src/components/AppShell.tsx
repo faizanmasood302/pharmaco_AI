@@ -86,10 +86,11 @@ export default function AppShell({ children }: AppShellProps) {
               <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/70">Precision Support</p>
             </div>
           </div>
-          <button className="w-full mt-4 bg-primary text-on-primary text-[11px] font-bold uppercase tracking-widest py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors shadow-sm flex items-center justify-center gap-2">
-            <Icon name="search" className="h-[18px] w-[18px]" />
-            Patient Search
-          </button>
+          <div className="mt-3 px-2 py-1 bg-secondary/10 rounded-lg border border-secondary/20">
+            <p className="text-[9px] font-bold text-secondary uppercase tracking-[0.15em] text-center">
+              Research Simulation
+            </p>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto mt-4 px-2">
@@ -110,14 +111,12 @@ export default function AppShell({ children }: AppShellProps) {
         </div>
 
         <div className="mt-auto pt-4 px-2 border-t border-outline-variant/30">
-          <button className="flex items-center w-[calc(100%-16px)] gap-3 text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 hover:text-primary transition-all duration-200 rounded-xl cursor-pointer active:scale-95">
-            <Icon name="help" className="h-5 w-5" />
-            <span className="text-xs font-bold text-left">Support</span>
-          </button>
-          <button className="flex items-center w-[calc(100%-16px)] gap-3 text-on-surface-variant px-4 py-3 mx-2 my-1 hover:bg-primary-container/20 hover:text-primary transition-all duration-200 rounded-xl cursor-pointer active:scale-95">
-            <Icon name="history" className="h-5 w-5" />
-            <span className="text-xs font-bold text-left">Archive</span>
-          </button>
+          <div className="px-4 py-3 mx-2">
+            <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase tracking-[0.15em] leading-relaxed">
+              Pharmacogenomic Harness v0.2.0<br />
+              <span className="text-[8px]">Not for clinical use</span>
+            </p>
+          </div>
         </div>
       </nav>
 
@@ -154,16 +153,6 @@ export default function AppShell({ children }: AppShellProps) {
                     <p className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest">Active Practitioner</p>
                     <p className="text-xs font-bold text-primary truncate mt-0.5">Clinical Staff</p>
                   </div>
-                  
-                  <button className="w-[calc(100%-16px)] mx-2 flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all group">
-                    <Icon name="person" className="h-4 w-4" />
-                    <span className="text-xs font-bold">Clinical Profile</span>
-                  </button>
-                  
-                  <button className="w-[calc(100%-16px)] mx-2 flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all group">
-                    <Icon name="security" className="h-4 w-4" />
-                    <span className="text-xs font-bold">Access Logs</span>
-                  </button>
                   
                   <div className="h-px bg-outline-variant/20 my-2 mx-4"></div>
                   

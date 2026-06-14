@@ -30,6 +30,8 @@ import {
   Lightbulb,
   ClipboardList,
   Pill,
+  Eye,
+  EyeOff,
   type LucideProps 
 } from 'lucide-react';
 
@@ -66,6 +68,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   insights: Lightbulb,
   assignment_ind: ClipboardList,
   medication: Pill,
+  visibility: Eye,
+  visibility_off: EyeOff,
 };
 
 type IconProps = LucideProps & {

@@ -8,6 +8,7 @@ import Icon from "@/components/Icon";
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -83,19 +84,26 @@ export default function SignupPage() {
 
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-widest text-on-surface-variant/60 mb-2 ml-1">Secure Password</label>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-outline-variant">
-                  <Icon name="lock" className="h-5 w-5" />
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-outline-variant">
+                    <Icon name="lock" className="h-5 w-5" />
+                  </div>
+                  <input 
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input-clinical w-full bg-surface-container-lowest font-sans rounded-xl py-3.5 pl-12 pr-12 border-outline-variant/20 focus:border-primary transition-all shadow-inner" 
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant hover:text-primary transition-colors"
+                  >
+                    <Icon name={showPassword ? "visibility_off" : "visibility"} className="h-5 w-5" />
+                  </button>
                 </div>
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input-clinical w-full bg-surface-container-lowest font-sans rounded-xl py-3.5 pl-12 pr-4 border-outline-variant/20 focus:border-primary transition-all shadow-inner" 
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
             </div>
 
             {error && (
