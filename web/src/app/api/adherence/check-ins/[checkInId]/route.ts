@@ -3,7 +3,7 @@ import { proxyPost, getSessionCookieFromRequest } from "@/lib/api";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { checkInId: string } }
+  { params }: { params: Promise<{ checkInId: string }> }
 ) {
   const token = getSessionCookieFromRequest(request);
   const { checkInId } = await params;
