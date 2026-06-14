@@ -13,11 +13,13 @@ export async function proxy(request: NextRequest) {
   }
 
   const SESSION_COOKIE = "better-auth.session_token";
-  const SECURE_SESSION_COOKIE = "_Secure-better-auth.session_token";
+  const SECURE_SESSION_COOKIE = "__Secure-better-auth.session_token";
+  const LEGACY_SECURE_COOKIE = "_Secure-better-auth.session_token";
 
   const sessionCookie =
     request.cookies.get(SECURE_SESSION_COOKIE) ||
-    request.cookies.get(SESSION_COOKIE);
+    request.cookies.get(SESSION_COOKIE) ||
+    request.cookies.get(LEGACY_SECURE_COOKIE);
 
   if (!sessionCookie) {
     return NextResponse.redirect(new URL("/login", request.url));
@@ -40,6 +42,7 @@ export async function proxy(request: NextRequest) {
       const response = NextResponse.redirect(new URL("/login", request.url));
       response.cookies.delete(SESSION_COOKIE);
       response.cookies.delete(SECURE_SESSION_COOKIE);
+      response.cookies.delete(LEGACY_SECURE_COOKIE);
       return response;
     }
   } catch {
@@ -51,6 +54,7 @@ export async function proxy(request: NextRequest) {
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete(SESSION_COOKIE);
     response.cookies.delete(SECURE_SESSION_COOKIE);
+    response.cookies.delete(LEGACY_SECURE_COOKIE);
     return response;
   }
 
