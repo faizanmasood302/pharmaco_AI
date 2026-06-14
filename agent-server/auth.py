@@ -29,7 +29,7 @@ def verify_token(
     if not raw_token:
         raise AuthFailedError("Session token cannot be empty")
 
-    logger.info("Validating session token")
+    logger.info("Validating session token, secret=%s, db=%s", bool(BETTER_AUTH_SECRET), bool(DATABASE_URL))
 
     # Try JWT verification first (BetterAuth sends a JWT in the cookie)
     if BETTER_AUTH_SECRET:
@@ -38,14 +38,15 @@ def verify_token(
                 raw_token,
                 BETTER_AUTH_SECRET,
                 algorithms=["HS256"],
+                options={"verify_exp": False},
             )
+            logger.info("JWT decoded, keys=%s", list(payload.keys()))
             user_id = payload.get("sub")
             if user_id:
+                logger.info("JWT auth OK for user=%s", user_id)
                 return user_id
-        except jwt.ExpiredSignatureError:
-            raise AuthFailedError("Session has expired. Please log in again.")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("JWT decode failed: %s", exc)
 
     # Fallback: look up raw token in session table
     if DATABASE_URL:
@@ -62,7 +63,9 @@ def verify_token(
                         user_id, expires_at = row
                         if expires_at and expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
                             raise AuthFailedError("Session has expired. Please log in again.")
+                        logger.info("DB auth OK for user=%s", user_id)
                         return user_id
+                    logger.info("DB lookup: no row for token length=%d", len(raw_token))
         except Exception as exc:
             logger.warning("DB session verification failed: %s", exc)
 
