@@ -137,6 +137,11 @@ async def add_correlation_id(request: Request, call_next):
     return response
 
 
+@app.get("/api/health")
+async def health():
+    return {"status": "healthy"}
+
+
 @app.get("/")
 @limiter.limit("20/minute")
 async def root(request: Request):
