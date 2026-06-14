@@ -85,9 +85,7 @@ def verify_token(
     if not raw_token:
         raise AuthFailedError("Session token cannot be empty")
 
-    import sys
-    print(f"AUTH_DEBUG: token_len={len(raw_token)} token_start={raw_token[:50] if raw_token else 'NONE'} secret_set={bool(BETTER_AUTH_SECRET)} db_set={bool(DATABASE_URL)} has_dot={'.' in raw_token if raw_token else False}", flush=True)
-    logger.info("Validating session token, len=%d, preview=%s..", len(raw_token), raw_token[:60])
+    logger.info("Validating session token, len=%d", len(raw_token))
 
     # 1) Try direct JWT decode (standard 3-segment JWT)
     if BETTER_AUTH_SECRET:
