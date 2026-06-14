@@ -10,62 +10,6 @@
 
 ---
 
-## Evaluation: 2026-06-03 09:19:28 (UTC)
-- **Medication:** Codeine
-- **Trend Summary:** First recorded clinical encounter for this patient.
-
-### Historical Audit Trail
-PRESCRIBING HISTORY:
-None
-
-REAL-WORLD ADHERENCE FEEDBACK:
-No side effects reported in recent check-ins.
-
-
-
-
-
-
-
-
----
-
-
-
-
-
-
-
-
-
----
-
-## Evaluation: 2026-06-13 04:39:27 (UTC)
-- **Medication:** Codeine
-- **Trend Summary:** First recorded clinical encounter for this patient.
-
-### Historical Audit Trail
-PRESCRIBING HISTORY:
-None
-
-REAL-WORLD ADHERENCE FEEDBACK:
-No side effects reported in recent check-ins.
-
-
-
-
-
-
----
-
-
-
-
-
-
-
----
-
 ## Evaluation: 2026-06-13 05:45:29 (UTC)
 - **Medication:** Codeine
 - **Trend Summary:** First recorded clinical encounter for this patient.
@@ -80,7 +24,15 @@ No side effects reported in recent check-ins.
 
 
 
+
+
+
+
 ---
+
+
+
+
 
 
 
@@ -100,13 +52,61 @@ REAL-WORLD ADHERENCE FEEDBACK:
 No side effects reported in recent check-ins.
 
 
+
+
+
+
 ---
+
+
+
+
 
 
 
 ---
 
 ## Evaluation: 2026-06-13 05:46:24 (UTC)
+- **Medication:** Codeine
+- **Trend Summary:** First recorded clinical encounter for this patient.
+
+### Historical Audit Trail
+PRESCRIBING HISTORY:
+None
+
+REAL-WORLD ADHERENCE FEEDBACK:
+No side effects reported in recent check-ins.
+
+
+
+
+---
+
+
+
+
+
+---
+
+## Evaluation: 2026-06-14 06:57:06 (UTC)
+- **Medication:** Codeine
+- **Trend Summary:** First recorded clinical encounter for this patient.
+
+### Historical Audit Trail
+PRESCRIBING HISTORY:
+None
+
+REAL-WORLD ADHERENCE FEEDBACK:
+No side effects reported in recent check-ins.
+
+
+---
+
+
+
+---
+
+## Evaluation: 2026-06-14 06:57:39 (UTC)
 - **Medication:** Codeine
 - **Trend Summary:** First recorded clinical encounter for this patient.
 
