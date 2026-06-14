@@ -43,3 +43,6 @@ tmp/
 *.log
 .pytest_cache/
 /web/vitest.config.ts.timestamp-*
+
+*.png
+website_design/
