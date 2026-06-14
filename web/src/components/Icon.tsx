@@ -32,6 +32,7 @@ import {
   Pill,
   Eye,
   EyeOff,
+  Menu,
   type LucideProps 
 } from 'lucide-react';
 
@@ -70,6 +71,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   medication: Pill,
   visibility: Eye,
   visibility_off: EyeOff,
+  menu: Menu,
 };
 
 type IconProps = LucideProps & {

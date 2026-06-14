@@ -660,7 +660,10 @@ export default function Home() {
                         <p className="text-sm text-on-surface-variant mt-1">Prototype structured reports for simulated review workflows.</p>
                       </div>
                       {clinicalNote && (
-                        <button className="bg-primary text-on-primary text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded shadow-sm hover:bg-primary/90 transition-all flex items-center gap-2">
+                        <button
+                          onClick={() => window.print()}
+                          className="bg-primary text-on-primary text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded shadow-sm hover:bg-primary/90 transition-all flex items-center gap-2 active:scale-95"
+                        >
                           <Icon name="print" className="h-4 w-4" />
                           Print Report
                         </button>
@@ -668,7 +671,7 @@ export default function Home() {
                     </div>
 
                     {clinicalNote ? (
-                      <div className="flex-1 bg-surface-container-low/30 rounded-lg p-10 border border-primary/10 shadow-inner overflow-y-auto">
+                      <div className="print-content flex-1 bg-surface-container-low/30 rounded-lg p-10 border border-primary/10 shadow-inner overflow-y-auto">
                         <div className="bg-white shadow-xl max-w-2xl mx-auto p-12 border border-outline-variant/30 min-h-[800px] relative">
                            <div className="absolute top-4 right-4 print:hidden">
                               <button onClick={() => setClinicalNote(null)} className="text-on-surface-variant/30 hover:text-primary transition-colors">
