@@ -9,12 +9,14 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from agents.debate import convene_panel
 from agents.knowledge import retrieve_clinical_evidence
 from agents.research import research_patient
 from agents.tools import execute_tool, get_tool_schemas
 from config import GROQ_MODEL
 from db.database import save_evaluation
 from models import (
+    AdjudicatorOutput,
     AgentStep,
     AuditEvent,
     CriticOutput,
@@ -650,7 +652,25 @@ def _build_logic_tree(
     }
 
 
-# reasoning_summary
+def _adjudicator_to_reasoning(
+    adj: AdjudicatorOutput,
+    evidence_sources: list[str],
+) -> ReasoningOutput:
+    return ReasoningOutput(
+        flagged=adj.consensus_flagged,
+        risk_level=adj.consensus_risk_level,
+        risk_summary=adj.consensus_summary,
+        recommended_alternative=adj.recommended_alternative,
+        alternative_rationale=adj.alternative_rationale,
+        cpic_note=adj.cpic_note,
+        cpic_level=adj.cpic_level,
+        decision_confidence=adj.decision_confidence,
+        next_best_actions=adj.next_best_actions,
+        reasoning_summary=adj.consensus_summary,
+        human_gate_required=adj.human_gate_required,
+    )
+
+
 def orchestrate(patient_id: str, medication: str) -> EvaluationResponse:
     start_total = time.perf_counter()
     patient, retrieval_summary, retrieval_ms = research_patient(patient_id)
@@ -676,19 +696,33 @@ def orchestrate(patient_id: str, medication: str) -> EvaluationResponse:
         )
     ]
 
-    reasoning_start = time.perf_counter()
-    reasoning = _reasoning_agent(patient, medication, evidence_text, evidence_sources)
-    reasoning_ms = int((time.perf_counter() - reasoning_start) * 1000)
+    panel_start = time.perf_counter()
+    opinions, adjudicated, panel_ms = convene_panel(
+        patient, medication, evidence_text, evidence_sources
+    )
+    for op in opinions:
+        agent_steps.append(
+            AgentStep(
+                agent=op.agent_name,
+                status="complete",
+                summary=op.risk_summary,
+                duration_ms=0,
+                confidence=op.confidence,
+                evidence_refs=[*op.evidence_refs, *evidence_sources],
+            )
+        )
     agent_steps.append(
         AgentStep(
-            agent="Reasoning",
+            agent="Adjudicator",
             status="complete",
-            summary=reasoning.reasoning_summary or reasoning.risk_summary,
-            duration_ms=reasoning_ms,
-            confidence=reasoning.decision_confidence,
-            evidence_refs=[*evidence_sources, "retrieved_evidence"],
+            summary=adjudicated.consensus_summary,
+            duration_ms=panel_ms,
+            confidence=adjudicated.decision_confidence,
+            evidence_refs=[*evidence_sources, "specialist_panel"],
         )
     )
+
+    reasoning = _adjudicator_to_reasoning(adjudicated, evidence_sources)
 
     critique_start = time.perf_counter()
     critique = _critique_agent(

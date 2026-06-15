@@ -208,6 +208,31 @@ class ReviewDecisionRequest(BaseModel):
 EvaluationResponse.model_rebuild()
 
 
+class SpecialistOpinion(BaseModel):
+    agent_name: str
+    risk_level: str
+    flagged: bool
+    risk_summary: str
+    recommendation: str | None = None
+    reasoning: str
+    confidence: float = Field(default=0.7, ge=0, le=1)
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+class AdjudicatorOutput(BaseModel):
+    consensus_risk_level: str
+    consensus_flagged: bool
+    consensus_summary: str
+    agreement_level: str
+    recommended_alternative: str | None = None
+    alternative_rationale: str
+    cpic_note: str
+    cpic_level: str = "informative"
+    decision_confidence: float = Field(default=0.75, ge=0, le=1)
+    next_best_actions: list[str] = Field(default_factory=list)
+    human_gate_required: bool = True
+
+
 class TherapyEvidenceBundle(BaseModel):
     sources: list[str] = Field(default_factory=list)
     target_rationale: str
