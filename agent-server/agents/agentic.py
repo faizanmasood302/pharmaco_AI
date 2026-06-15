@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from agents.knowledge import retrieve_clinical_evidence
 from agents.research import research_patient
+from agents.tools import execute_tool, get_tool_schemas
 from config import GROQ_MODEL
 from db.database import save_evaluation
 from models import (
@@ -322,19 +323,29 @@ def _reasoning_agent(
     evidence_sources: list[str],
 ) -> ReasoningOutput:
     profile = _patient_profile(patient)
-    prompt = [
-        {
-            "role": "system",
-            "content": (
-                "You are a pharmacogenomics reasoning agent. "
-                "Use only the supplied patient context and evidence. "
-                "Do not mention deterministic rules. "
-                "Return strict JSON with keys: flagged, risk_level, risk_summary, recommended_alternative, "
-                "alternative_rationale, cpic_note, cpic_level, decision_confidence, next_best_actions, "
-                "reasoning_summary, human_gate_required. "
-                "The clinical gate must remain with the human clinician."
-            ),
-        },
+    tool_schemas = get_tool_schemas()
+
+    system_msg = (
+        "You are a pharmacogenomics reasoning agent. "
+        "Use only the supplied patient context and evidence. "
+        "Do not mention deterministic rules. "
+        "Return strict JSON with keys: flagged, risk_level, risk_summary, recommended_alternative, "
+        "alternative_rationale, cpic_note, cpic_level, decision_confidence, next_best_actions, "
+        "reasoning_summary, human_gate_required. "
+        "The clinical gate must remain with the human clinician."
+    )
+    if tool_schemas:
+        tool_names = [t["function"]["name"] for t in tool_schemas]
+        system_msg += (
+            f"\n\nYou have access to tools: {', '.join(tool_names)}. "
+            "To use a tool, output a JSON tool_call in the response using the format "
+            '{"tool_call": {"name": "<tool_name>", "arguments": {...}}}. '
+            "The system will execute the tool and return the result. "
+            "After receiving the result, produce the final JSON output."
+        )
+
+    messages: list[dict[str, Any]] = [
+        {"role": "system", "content": system_msg},
         {
             "role": "user",
             "content": json.dumps(
@@ -357,10 +368,27 @@ def _reasoning_agent(
         },
     ]
 
-    raw = _groq_json(prompt, max_tokens=380, temperature=0.15)
-    if raw is not None:
+    if _groq is not None and os.environ.get("GROQ_API_KEY"):
         try:
-            return ReasoningOutput(**raw)
+            raw = _groq_json(messages, max_tokens=600, temperature=0.15)
+            if raw is not None and "tool_call" in raw:
+                tc = raw["tool_call"]
+                tool_name = tc.get("name", "")
+                tool_args = tc.get("arguments", {})
+                logger.info("Reasoning agent requested tool: %s", tool_name)
+                tool_result = execute_tool(tool_name, tool_args)
+                messages.append({"role": "assistant", "content": json.dumps(raw)})
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": f"Tool '{tool_name}' returned:\n{tool_result}\n\nNow produce the final JSON output with your reasoning.",
+                    }
+                )
+                raw = _groq_json(messages, max_tokens=600, temperature=0.15)
+
+            if raw is not None:
+                raw.pop("tool_call", None)
+                return ReasoningOutput(**raw)
         except Exception as exc:
             logger.warning("Failed to parse reasoning JSON, falling back: %s", exc)
 
