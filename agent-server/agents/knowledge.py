@@ -12,6 +12,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 from config import GROQ_MODEL
+from db.vector_store import query_clinical_knowledge
 
 try:
     from groq import Groq
@@ -21,6 +22,8 @@ except Exception:
     _groq = None
 
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "knowledge"
+
+SIMILARITY_THRESHOLD = 0.3
 
 
 def _load_documents() -> list[tuple[str, str]]:
@@ -68,17 +71,67 @@ def _extract_relevant_lines(text: str, medication: str, phenotype: str) -> list[
 def retrieve_clinical_evidence(
     medication: str, phenotype: str, risk_level: str
 ) -> tuple[str | None, int, list[str]]:
-    """
-    Knowledge Agent: retrieve source-backed guidance from local clinical notes.
-    Task 4: Scoped ReAct.
-    """
     start = time.perf_counter()
 
-    # Reasoning Step (Internal)
-    reasoning = (
-        f"Evaluating if local knowledge for {medication} + {phenotype} is sufficient..."
-    )
+    # Step 1: Try semantic retrieval (Phase 1 RAG)
+    query = f"{medication} {phenotype} {risk_level} CYP2D6 opioid prodrug"
+    semantic_hits = query_clinical_knowledge(query, top_k=5, min_similarity=SIMILARITY_THRESHOLD)
 
+    if semantic_hits:
+        sources = sorted({h["source"] for h in semantic_hits})
+        context = "\n\n".join(
+            f"--- SOURCE: {h['source']} (score: {h['similarity']}) ---\n{h['text']}"
+            for h in semantic_hits
+        )
+        reasoning = (
+            f"Retrieved {len(semantic_hits)} semantically relevant chunks "
+            f"for {medication} + {phenotype} (threshold={SIMILARITY_THRESHOLD})."
+        )
+
+        if _groq is not None and os.environ.get("GROQ_API_KEY"):
+            try:
+                completion = _groq.chat.completions.create(
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are a clinical evidence extraction agent. "
+                                "Use only the supplied source text. Return concise "
+                                "evidence for a prescribing clinician. "
+                                "MANDATORY: Start with the exact source file name "
+                                "(e.g., 'Source: cpic_opioid_guidelines.md')."
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": (
+                                f"Medication: {medication}\n"
+                                f"Phenotype: {phenotype}\n"
+                                f"Risk Level: {risk_level}\n\n"
+                                f"{context}"
+                            ),
+                        },
+                    ],
+                    model=GROQ_MODEL,
+                    max_tokens=260,
+                )
+                elapsed = int((time.perf_counter() - start) * 1000)
+                return completion.choices[0].message.content, elapsed, sources
+            except Exception as e:
+                logger.error("Knowledge LLM extraction failed: %s", e)
+                pass
+
+        snippets: list[str] = []
+        for h in semantic_hits:
+            lines = _extract_relevant_lines(h["text"], medication, phenotype)
+            if lines:
+                snippets.append(f"{h['source']} (sim={h['similarity']}): {' '.join(lines)}")
+
+        elapsed = int((time.perf_counter() - start) * 1000)
+        return "\n".join(snippets) if snippets else context, elapsed, sources
+
+    # Step 2: Fallback to keyword scoring (existing logic)
+    logger.info("Semantic retrieval returned no hits, falling back to keyword matching")
     documents = _load_documents()
     ranked = sorted(
         (
@@ -91,7 +144,9 @@ def retrieve_clinical_evidence(
     sources = [name for name, _ in relevant]
 
     if not relevant:
-        # ReAct Action: Simulate external search when local data is missing
+        reasoning = (
+            f"Evaluating if local knowledge for {medication} + {phenotype} is sufficient..."
+        )
         reasoning += " [ACTION] Local files insufficient. Querying external medical database (PubMed/PharmGKB mock)..."
         external_mock = (
             f"External Search Result: Case studies suggest {medication} should be used with extreme caution "
@@ -113,7 +168,8 @@ def retrieve_clinical_evidence(
                             "You are a clinical evidence extraction agent. "
                             "Use only the supplied source text. Return concise "
                             "evidence for a prescribing clinician. "
-                            "MANDATORY: You MUST start your response with the exact name of the source file you are quoting from (e.g., 'Source: cpic_opioid_guidelines.md')."
+                            "MANDATORY: Start with the exact source file name "
+                            "(e.g., 'Source: cpic_opioid_guidelines.md')."
                         ),
                     },
                     {
@@ -132,7 +188,7 @@ def retrieve_clinical_evidence(
             elapsed = int((time.perf_counter() - start) * 1000)
             return completion.choices[0].message.content, elapsed, sources
         except Exception as e:
-            logger.error(f"Knowledge agent LLM call failed: {e}")
+            logger.error("Knowledge agent LLM call failed: %s", e)
             pass
 
     snippets: list[str] = []
