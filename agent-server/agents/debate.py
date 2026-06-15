@@ -8,6 +8,7 @@ from typing import Any
 
 from agents.knowledge import retrieve_clinical_evidence
 from agents.tools import execute_tool
+from agents.tracing import get_drift_monitor, traceable
 from config import GROQ_MODEL
 from models import AdjudicatorOutput, SpecialistOpinion
 
@@ -502,6 +503,15 @@ def _adjudicator(opinions: list[SpecialistOpinion]) -> AdjudicatorOutput:
 # --- Public API ---
 
 
+def _convert_to_dict(op: SpecialistOpinion) -> dict[str, Any]:
+    return {
+        "risk_level": op.risk_level,
+        "flagged": op.flagged,
+        "recommendation": op.recommendation,
+    }
+
+
+@traceable(name="ConvenePanel", run_type="chain")
 def convene_panel(
     patient: dict[str, Any],
     medication: str,
@@ -514,9 +524,31 @@ def convene_panel(
     if patient.get("cyp_profiles"):
         phenotype = patient["cyp_profiles"][0].get("phenotype", "Unknown")
 
+    monitor = get_drift_monitor()
+
     pharm = _pharmacologist_agent(medication, phenotype, evidence_text, evidence_sources)
+    monitor.compare(
+        "Pharmacologist",
+        _convert_to_dict(pharm),
+        _convert_to_dict(_pharmacologist_fallback(medication, phenotype, evidence_text)),
+        context=f"{medication}/{phenotype}",
+    )
+
     genetic = _geneticist_agent(phenotype, evidence_text, evidence_sources)
+    monitor.compare(
+        "Geneticist",
+        _convert_to_dict(genetic),
+        _convert_to_dict(_geneticist_fallback(phenotype, evidence_text)),
+        context=phenotype,
+    )
+
     clinic = _clinician_agent(patient, medication, evidence_text, evidence_sources)
+    monitor.compare(
+        "Clinician",
+        _convert_to_dict(clinic),
+        _convert_to_dict(_clinician_fallback(patient, medication, evidence_text)),
+        context=f"{medication}/{patient.get('indication', '?')}",
+    )
 
     opinions = [pharm, genetic, clinic]
     adjudicated = _adjudicator(opinions)

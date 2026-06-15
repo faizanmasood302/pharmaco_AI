@@ -9,6 +9,7 @@ from langgraph.graph import END, START, StateGraph
 from agents.generative import design_research_mrna_candidate
 from agents.research import research_patient
 from agents.therapy_rag import retrieve_therapy_evidence
+from agents.tracing import end_trace, get_drift_monitor, traceable
 from agents.validation import validate_research_mrna_candidate
 from models import (
     AgentStep,
@@ -84,6 +85,7 @@ def _append_audit(state: TherapyGraphState, event: AuditEvent) -> list[AuditEven
     return [*state.get("audit_events", []), event]
 
 
+@traceable(name="RequestGuardrails", run_type="chain")
 def request_guardrails_node(state: TherapyGraphState) -> dict[str, Any]:
     start = time.perf_counter()
     target = state["target_disease"].strip()
@@ -166,6 +168,7 @@ def patient_context_node(state: TherapyGraphState) -> dict[str, Any]:
     }
 
 
+@traceable(name="EvidenceRAG", run_type="retriever")
 def evidence_rag_node(state: TherapyGraphState) -> dict[str, Any]:
     evidence, elapsed = retrieve_therapy_evidence(
         state["target_disease"],
@@ -204,6 +207,7 @@ def evidence_rag_node(state: TherapyGraphState) -> dict[str, Any]:
     }
 
 
+@traceable(name="TargetSelection", run_type="chain")
 def target_selection_node(state: TherapyGraphState) -> dict[str, Any]:
     start = time.perf_counter()
     evidence = state["evidence_bundle"] or {}
@@ -345,6 +349,7 @@ def validation_node(state: TherapyGraphState) -> dict[str, Any]:
     }
 
 
+@traceable(name="SafetyCritic", run_type="chain")
 def safety_critic_node(state: TherapyGraphState) -> dict[str, Any]:
     start = time.perf_counter()
     evidence = state.get("evidence_bundle") or {}
@@ -629,6 +634,7 @@ def _logic_tree(state: TherapyGraphState) -> dict[str, Any]:
     }
 
 
+@traceable(name="OrchestrateTherapyGeneration", run_type="chain")
 def orchestrate_therapy_generation(
     patient_id: str,
     target_disease: str,
@@ -655,6 +661,18 @@ def orchestrate_therapy_generation(
         "safety_notes": [],
     }
     final_state = THERAPY_GRAPH.invoke(initial_state)
+
+    monitor = get_drift_monitor()
+    safety_notes = final_state.get("safety_notes", [])
+    if monitor.records:
+        drift_summary = monitor.summary()
+        safety_notes.append(
+            f"Drift detected: {drift_summary['high_severity']} high, "
+            f"{drift_summary['low_severity']} low severity divergences "
+            f"across {drift_summary['record_count']} agent(s)."
+        )
+        final_state["safety_notes"] = safety_notes
+
     candidate = final_state.get("active_candidate")
     evidence = final_state.get("evidence_bundle")
     validation = final_state.get("validation_result")

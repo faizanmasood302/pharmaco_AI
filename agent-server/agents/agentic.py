@@ -13,6 +13,7 @@ from agents.debate import convene_panel
 from agents.knowledge import retrieve_clinical_evidence
 from agents.research import research_patient
 from agents.tools import execute_tool, get_tool_schemas
+from agents.tracing import get_drift_monitor, traceable
 from config import GROQ_MODEL
 from db.database import save_evaluation
 from models import (
@@ -671,6 +672,7 @@ def _adjudicator_to_reasoning(
     )
 
 
+@traceable(name="OrchestratePGxEvaluation", run_type="chain")
 def orchestrate(patient_id: str, medication: str) -> EvaluationResponse:
     start_total = time.perf_counter()
     patient, retrieval_summary, retrieval_ms = research_patient(patient_id)
@@ -795,6 +797,14 @@ def orchestrate(patient_id: str, medication: str) -> EvaluationResponse:
     decision_confidence = round(
         (reasoning.decision_confidence + critique.challenge_confidence) / 2, 2
     )
+    drift_monitor = get_drift_monitor()
+    drift_summary = drift_monitor.summary()
+    if drift_summary["drift_detected"]:
+        logger.warning(
+            "Drift detected during evaluation: %s",
+            drift_summary,
+        )
+
     safety_notes = [
         "Synthetic demo data only; not for autonomous dispensing.",
         "Clinician approval required before release.",
@@ -806,6 +816,12 @@ def orchestrate(patient_id: str, medication: str) -> EvaluationResponse:
     if not evidence_sources:
         safety_notes.append(
             "No direct source-backed evidence was retrieved for this case."
+        )
+    if drift_summary["drift_detected"]:
+        safety_notes.append(
+            f"Drift detected: {drift_summary['high_severity']} high, "
+            f"{drift_summary['low_severity']} low severity divergences "
+            f"across {drift_summary['record_count']} agent(s)."
         )
 
     final_agent_step_duration = int((time.perf_counter() - start_total) * 1000)
