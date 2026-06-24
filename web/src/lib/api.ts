@@ -80,7 +80,7 @@ export async function proxyGet(path: string, explicitToken?: string) {
   return text ? JSON.parse(text) : {};
 }
 
-export async function proxyPost(path: string, body: unknown, explicitToken?: string) {
+export async function proxyPost(path: string, body: unknown, explicitToken?: string, timeout?: number) {
   const token = explicitToken ?? await getAuthToken();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -89,6 +89,14 @@ export async function proxyPost(path: string, body: unknown, explicitToken?: str
     method: "POST",
     headers,
     body: JSON.stringify(body),
+    timeout,
+  }).catch(err => {
+    const isTimeout = err.name === "AbortError" || err.message?.includes("aborted") || err.message?.includes("timeout");
+    if (isTimeout) {
+      throw new Error(`Gateway Timeout: ${AGENT_SERVER}${path} did not respond within ${timeout ?? FETCH_TIMEOUT}ms`);
+    }
+    console.error(`Fetch error for ${path}:`, err);
+    throw new Error(`Agent Server unreachable at ${AGENT_SERVER}${path}: ${err.message}`);
   });
   
   if (!res.ok) {

@@ -1,0 +1,428 @@
+{
+  "guidelines": {
+    "codeine": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "Avoid codeine use because of potential for serious toxicity.",
+          "risk_level": "high",
+          "source": "CPIC Level A (Strong)",
+          "citation": "doi:10.1002/cpt.2149",
+          "fda_black_box": "Life-threatening respiratory depression documented in UM children (FDA)"
+        },
+        "normal metabolizer": {
+          "recommendation": "Use label-recommended age- or weight-specific dosing.",
+          "risk_level": "low",
+          "source": "CPIC Level A (Strong)",
+          "citation": "doi:10.1002/cpt.2149"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Use label-recommended dosing. If no response, consider non-codeine opioid.",
+          "risk_level": "low",
+          "source": "CPIC Level A (Moderate)",
+          "citation": "doi:10.1002/cpt.2149"
+        },
+        "poor metabolizer": {
+          "recommendation": "Avoid codeine use because of possibility of diminished analgesia.",
+          "risk_level": "moderate",
+          "source": "CPIC Level A (Strong)",
+          "citation": "doi:10.1002/cpt.2149"
+        }
+      }
+    },
+    "tramadol": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "Avoid tramadol use because of potential for toxicity. Consider non-codeine opioid.",
+          "risk_level": "high",
+          "source": "CPIC Level A (Strong)",
+          "citation": "doi:10.1002/cpt.2149"
+        },
+        "normal metabolizer": {
+          "recommendation": "Use label-recommended age- or weight-specific dosing.",
+          "risk_level": "low",
+          "source": "CPIC Level A (Strong)",
+          "citation": "doi:10.1002/cpt.2149"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Use label-recommended dosing. If no response, consider non-codeine opioid.",
+          "risk_level": "low",
+          "source": "CPIC Level A (Moderate)",
+          "citation": "doi:10.1002/cpt.2149"
+        },
+        "poor metabolizer": {
+          "recommendation": "Avoid tramadol use because of possibility of diminished analgesia.",
+          "risk_level": "moderate",
+          "source": "CPIC Level A (Strong)",
+          "citation": "doi:10.1002/cpt.2149"
+        }
+      }
+    },
+    "hydrocodone": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "Insufficient evidence for a recommendation (CPIC Level C). Standard dosing.",
+          "risk_level": "low",
+          "source": "CPIC Level C",
+          "citation": "doi:10.1002/cpt.2149"
+        },
+        "normal metabolizer": {
+          "recommendation": "Use label-recommended dosing.",
+          "risk_level": "low",
+          "source": "CPIC Level A (Strong)",
+          "citation": "doi:10.1002/cpt.2149"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Use label-recommended dosing. If no response, consider alternative analgesic.",
+          "risk_level": "low",
+          "source": "CPIC Level B (Optional)",
+          "citation": "doi:10.1002/cpt.2149"
+        },
+        "poor metabolizer": {
+          "recommendation": "Use label-recommended dosing. If no response, consider alternative analgesic.",
+          "risk_level": "low",
+          "source": "CPIC Level B (Optional)",
+          "citation": "doi:10.1002/cpt.2149"
+        }
+      }
+    },
+    "oxycodone": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "No action required (DPWG). CYP2D6 is a minor pathway (~11%).",
+          "risk_level": "low",
+          "source": "DPWG 2022",
+          "citation": "doi:10.1038/s41431-021-00920-y"
+        },
+        "normal metabolizer": {
+          "recommendation": "No action required.",
+          "risk_level": "low",
+          "source": "DPWG 2022",
+          "citation": "doi:10.1038/s41431-021-00920-y"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "No action required.",
+          "risk_level": "low",
+          "source": "DPWG 2022",
+          "citation": "doi:10.1038/s41431-021-00920-y"
+        },
+        "poor metabolizer": {
+          "recommendation": "No action required. CYP2D6 metabolism does not affect clinical outcomes.",
+          "risk_level": "low",
+          "source": "DPWG 2022",
+          "citation": "doi:10.1038/s41431-021-00920-y"
+        }
+      }
+    },
+    "citalopram": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "Consider alternative (e.g., fluoxetine, paroxetine). If using citalopram, monitor for reduced efficacy at standard doses.",
+          "risk_level": "moderate",
+          "source": "CPIC Level A (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "normal metabolizer": {
+          "recommendation": "Use label-recommended dosing (20-40 mg/day).",
+          "risk_level": "low",
+          "source": "CPIC Level A (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Use label-recommended dosing. Monitor for side effects.",
+          "risk_level": "low",
+          "source": "CPIC Level A (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "poor metabolizer": {
+          "recommendation": "Reduce dose by 50%. Maximum 20 mg/day due to QT prolongation risk. Consider alternative if tolerability issues.",
+          "risk_level": "moderate",
+          "source": "CPIC Level A (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427",
+          "fda_black_box": "FDA warning: dose-dependent QT prolongation risk at higher doses. Max 20 mg/day in CYP2C19 PMs."
+        }
+      }
+    },
+    "escitalopram": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "Consider alternative (e.g., fluoxetine). If using escitalopram, monitor for reduced efficacy.",
+          "risk_level": "moderate",
+          "source": "CPIC Level A (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "normal metabolizer": {
+          "recommendation": "Use label-recommended dosing (10-20 mg/day).",
+          "risk_level": "low",
+          "source": "CPIC Level A (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Use label-recommended dosing. Monitor for side effects.",
+          "risk_level": "low",
+          "source": "CPIC Level A (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "poor metabolizer": {
+          "recommendation": "Reduce dose by 50%. Consider alternative if tolerability issues.",
+          "risk_level": "moderate",
+          "source": "CPIC Level A (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        }
+      }
+    },
+    "sertraline": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "No dose adjustment recommended. Standard dosing (50-200 mg/day).",
+          "risk_level": "low",
+          "source": "CPIC Level B (Moderate)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "normal metabolizer": {
+          "recommendation": "Use label-recommended dosing (50-200 mg/day).",
+          "risk_level": "low",
+          "source": "CPIC Level B (Moderate)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Use label-recommended dosing. Monitor for side effects.",
+          "risk_level": "low",
+          "source": "CPIC Level B (Moderate)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "poor metabolizer": {
+          "recommendation": "Consider 50% dose reduction or alternative. Monitor for increased side effects.",
+          "risk_level": "moderate",
+          "source": "CPIC Level B (Moderate)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        }
+      }
+    },
+    "paroxetine": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "Consider alternative not primarily metabolized by CYP2D6 (e.g., sertraline, fluoxetine).",
+          "risk_level": "moderate",
+          "source": "CPIC Level A (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "normal metabolizer": {
+          "recommendation": "Use label-recommended dosing (20-50 mg/day).",
+          "risk_level": "low",
+          "source": "CPIC Level A (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Use label-recommended dosing. Monitor for side effects.",
+          "risk_level": "low",
+          "source": "CPIC Level A (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "poor metabolizer": {
+          "recommendation": "Reduce dose by 50%. Consider alternative if tolerability issues.",
+          "risk_level": "moderate",
+          "source": "CPIC Level A (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        }
+      }
+    },
+    "clopidogrel": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "If considering clopidogrel, use at standard dose (75 mg/day).",
+          "risk_level": "low",
+          "source": "CPIC Level A (Strong) for ACS/PCI",
+          "citation": "Lee et al. 2022, PMID 35034351, Table 2"
+        },
+        "normal metabolizer": {
+          "recommendation": "If considering clopidogrel, use at standard dose (75 mg/day).",
+          "risk_level": "low",
+          "source": "CPIC Level A (Strong) for ACS/PCI",
+          "citation": "Lee et al. 2022, PMID 35034351, Table 2"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Avoid standard dose clopidogrel (75 mg) if possible. Use prasugrel or ticagrelor at standard dose if no contraindication.",
+          "risk_level": "high",
+          "source": "CPIC Level A (Strong) for ACS/PCI",
+          "citation": "Lee et al. 2022, PMID 35034351, Table 2",
+          "fda_black_box": "FDA Boxed Warning: reduced effectiveness in CYP2C19 poor/intermediate metabolizers"
+        },
+        "poor metabolizer": {
+          "recommendation": "Avoid clopidogrel if possible. Use prasugrel or ticagrelor at standard dose if no contraindication.",
+          "risk_level": "high",
+          "source": "CPIC Level A (Strong) for ACS/PCI",
+          "citation": "Lee et al. 2022, PMID 35034351, Table 2",
+          "fda_black_box": "FDA Boxed Warning: reduced effectiveness in CYP2C19 poor/intermediate metabolizers"
+        }
+      }
+    },
+    "fluvoxamine": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "No recommendation due to lack of evidence for CYP2D6 ultrarapid metabolizers.",
+          "risk_level": "low",
+          "source": "CPIC (No recommendation)",
+          "citation": "Bousman et al. 2023, PMID 37032427, Table 2b"
+        },
+        "normal metabolizer": {
+          "recommendation": "Initiate therapy with recommended starting dose.",
+          "risk_level": "low",
+          "source": "CPIC (Strong)",
+          "citation": "Bousman et al. 2023, PMID 37032427, Table 2b"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Initiate therapy with recommended starting dose.",
+          "risk_level": "low",
+          "source": "CPIC (Moderate)",
+          "citation": "Bousman et al. 2023, PMID 37032427, Table 2b"
+        },
+        "poor metabolizer": {
+          "recommendation": "Consider a 25-50% lower starting dose and slower titration schedule, or consider an alternative antidepressant not predominantly metabolized by CYP2D6.",
+          "risk_level": "moderate",
+          "source": "CPIC (Optional)",
+          "citation": "Bousman et al. 2023, PMID 37032427, Table 2b"
+        }
+      }
+    },
+    "fluoxetine": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "No gene-based dosing recommendation. It may be reasonable to monitor more closely or select an alternative not extensively metabolized by CYP2D6 due to conflicting/inconclusive data.",
+          "risk_level": "low",
+          "source": "CPIC (No recommendation)",
+          "citation": "Bousman et al. 2023, PMID 37032427; Hicks et al. 2015, PMID 25974703"
+        },
+        "normal metabolizer": {
+          "recommendation": "Use label-recommended dosing.",
+          "risk_level": "low",
+          "source": "CPIC (Standard of care)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "No gene-based dosing recommendation. Use label-recommended dosing.",
+          "risk_level": "low",
+          "source": "CPIC (No recommendation)",
+          "citation": "Bousman et al. 2023, PMID 37032427"
+        },
+        "poor metabolizer": {
+          "recommendation": "No gene-based dosing recommendation. It may be reasonable to monitor more closely or select an alternative not extensively metabolized by CYP2D6 due to conflicting/inconclusive data. Caution advised: prescribing information states use with caution in conditions that predispose to increased fluoxetine exposure including CYP2D6 PM status.",
+          "risk_level": "low",
+          "source": "CPIC (No recommendation)",
+          "citation": "Bousman et al. 2023, PMID 37032427; Hicks et al. 2015, PMID 25974703"
+        }
+      }
+    },
+    "simvastatin": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "SLCO1B1 is a transporter gene — no ultra-rapid phenotype defined. Recommend SLCO1B1 genotyping if not already performed. If SLCO1B1 normal function, prescribe desired starting dose per disease-specific guidelines.",
+          "risk_level": "low",
+          "source": "CPIC (Strong)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Table 2"
+        },
+        "normal metabolizer": {
+          "recommendation": "Prescribe desired starting dose and adjust doses based on disease-specific guidelines.",
+          "risk_level": "low",
+          "source": "CPIC (Strong)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Table 2"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Increased simvastatin acid exposure as compared to normal function; increased risk of myopathy. Prescribe an alternative statin depending on desired potency. If simvastatin warranted, limit dose to <20 mg/day.",
+          "risk_level": "high",
+          "source": "CPIC (Strong)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Table 2"
+        },
+        "poor metabolizer": {
+          "recommendation": "Highly increased simvastatin acid exposure; highly increased myopathy risk. Prescribe an alternative statin depending on desired potency.",
+          "risk_level": "high",
+          "source": "CPIC (Strong)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Table 2"
+        }
+      }
+    },
+    "atorvastatin": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "SLCO1B1 is a transporter gene — no ultra-rapid phenotype defined. Recommend SLCO1B1 genotyping if not already performed. If SLCO1B1 normal function, prescribe desired starting dose per disease-specific guidelines.",
+          "risk_level": "low",
+          "source": "CPIC (Strong for normal function)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Table 2"
+        },
+        "normal metabolizer": {
+          "recommendation": "Prescribe desired starting dose and adjust doses based on disease-specific guidelines.",
+          "risk_level": "low",
+          "source": "CPIC (Strong)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Table 2"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Increased atorvastatin exposure as compared to normal function which may translate to increased myopathy risk. Prescribe ≤40 mg as a starting dose. Prescriber should be aware of possible increased risk for myopathy especially for 40 mg dose. If >40 mg needed, consider combination therapy.",
+          "risk_level": "moderate",
+          "source": "CPIC (Moderate)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Table 2"
+        },
+        "poor metabolizer": {
+          "recommendation": "Increased atorvastatin exposure as compared to normal and decreased function which may translate to increased myopathy risk. Prescribe ≤20 mg as a starting dose. If >20 mg needed, consider rosuvastatin or combination therapy.",
+          "risk_level": "high",
+          "source": "CPIC (Moderate)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Table 2"
+        }
+      }
+    },
+    "rosuvastatin": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "SLCO1B1 is a transporter gene — no ultra-rapid phenotype defined. Recommend SLCO1B1 and ABCG2 genotyping if not already performed. If SLCO1B1 normal function and ABCG2 normal function, prescribe desired starting dose per disease-specific guidelines.",
+          "risk_level": "low",
+          "source": "CPIC (Strong for normal function)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Tables 2, 3"
+        },
+        "normal metabolizer": {
+          "recommendation": "Prescribe desired starting dose and adjust doses based on disease-specific and specific population guidelines.",
+          "risk_level": "low",
+          "source": "CPIC (Strong)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Table 2"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Increased rosuvastatin exposure as compared to normal function. Prescribe desired starting dose. Prescriber should be aware of possible increased risk for myopathy especially for doses >20 mg. If ABCG2 decreased function also present, consider moderate recommendation.",
+          "risk_level": "moderate",
+          "source": "CPIC (Strong for SLCO1B1 alone; Moderate for ABCG2)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Tables 2, 3, 5"
+        },
+        "poor metabolizer": {
+          "recommendation": "Increased rosuvastatin exposure as compared to normal function. Prescribe ≤20 mg as a starting dose. If dose >20 mg needed for desired efficacy, consider combination therapy. If combined with ABCG2 poor function, starting dose ≤10 mg.",
+          "risk_level": "moderate",
+          "source": "CPIC (Moderate for SLCO1B1; Optional for ABCG2)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Tables 2, 3, 5"
+        }
+      }
+    },
+    "fluvastatin": {
+      "phenotypes": {
+        "ultra-rapid metabolizer": {
+          "recommendation": "SLCO1B1 is a transporter gene — no ultra-rapid phenotype defined. Recommend SLCO1B1 and CYP2C9 genotyping if not already performed. If SLCO1B1 normal function and CYP2C9 normal metabolizer, prescribe desired starting dose per disease-specific guidelines.",
+          "risk_level": "low",
+          "source": "CPIC (Strong for normal function)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Tables 2, 4"
+        },
+        "normal metabolizer": {
+          "recommendation": "Prescribe desired starting dose and adjust doses based on disease-specific guidelines.",
+          "risk_level": "low",
+          "source": "CPIC (Strong)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Table 2"
+        },
+        "intermediate metabolizer": {
+          "recommendation": "Increased fluvastatin exposure as compared to normal metabolizer which may translate to increased myopathy risk. Prescribe ≤40 mg per day as a starting dose. If dose >40 mg needed, consider alternative statin or combination therapy. If combined with SLCO1B1 decreased/poor function, highest risk.",
+          "risk_level": "moderate",
+          "source": "CPIC (Moderate)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Tables 4, 6"
+        },
+        "poor metabolizer": {
+          "recommendation": "Increased fluvastatin exposure as compared to normal and intermediate metabolizer which may translate to increased myopathy risk. Prescribe ≤20 mg per day as a starting dose. If dose >20 mg needed, consider alternative statin or combination therapy. If combined with SLCO1B1 decreased/poor function, use alternative agent.",
+          "risk_level": "high",
+          "source": "CPIC (Moderate)",
+          "citation": "Cooper-DeHoff et al. 2022, PMID 35152405, Tables 4, 6"
+        }
+      }
+    }
+  }
+}

@@ -8,6 +8,7 @@ import AdherencePanel from "@/components/AdherencePanel";
 import PathwayVisualizer from "@/components/PathwayVisualizer";
 import EvaluationHistory from "@/components/EvaluationHistory";
 import TherapySimulationPanel from "@/components/TherapySimulationPanel";
+import ReviewFlowPanel from "@/components/ReviewFlowPanel";
 import Icon from "@/components/Icon";
 import MetabolicScene from "@/components/MetabolicScene";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -45,8 +46,15 @@ export default function Home() {
     { name: "Hydrocodone", enzyme: "CYP2D6", is_prodrug: false },
     { name: "Oxycodone", enzyme: "CYP3A4", is_prodrug: false },
     { name: "Clopidogrel", enzyme: "CYP2C19", is_prodrug: true },
-    { name: "Pregabalin", enzyme: "—", is_prodrug: false },
+    { name: "Pregabalin", enzyme: "\u2014", is_prodrug: false },
     { name: "Duloxetine", enzyme: "CYP2D6", is_prodrug: false },
+    { name: "Citalopram", enzyme: "CYP2C19", is_prodrug: false },
+    { name: "Escitalopram", enzyme: "CYP2C19", is_prodrug: false },
+    { name: "Sertraline", enzyme: "CYP2C19", is_prodrug: false },
+    { name: "Paroxetine", enzyme: "CYP2D6", is_prodrug: false },
+    { name: "Prasugrel", enzyme: "CYP3A4", is_prodrug: true },
+    { name: "Ticagrelor", enzyme: "\u2014", is_prodrug: false },
+    { name: "Acetaminophen", enzyme: "\u2014", is_prodrug: false },
   ]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -733,6 +741,10 @@ export default function Home() {
                  </div>
                )}
             </div>
+          )}
+
+          {activeTab === "REVIEW_FLOW" && (
+            <ReviewFlowPanel result={result} />
           )}
 
           {activeTab === "RESEARCH" && (

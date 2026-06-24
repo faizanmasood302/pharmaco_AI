@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -42,15 +43,15 @@ def _fetch_check_ins(plan_id: str) -> list:
     return full.get("check_ins", []) if full else []
 
 
-def process_check_in(
+async def process_check_in(
     check_in_id: str, response: str, side_effect_reported: bool
 ) -> dict:
     updated = submit_check_in(check_in_id, response, side_effect_reported)
     if not updated:
         return {"status": "error", "message": "Check-in not found"}
 
-    triage = _perform_clinical_triage(response, side_effect_reported)
-    empathetic = _optional_empathetic_reply(response, side_effect_reported)
+    triage = await _perform_clinical_triage(response, side_effect_reported)
+    empathetic = await _optional_empathetic_reply(response, side_effect_reported)
 
     return {
         "status": "success",
@@ -61,7 +62,7 @@ def process_check_in(
     }
 
 
-def _perform_clinical_triage(response: str, side_effect: bool) -> dict:
+async def _perform_clinical_triage(response: str, side_effect: bool) -> dict:
     """Analyze check-in for severity and clinical action using LLM."""
     if _groq is None or not os.environ.get("GROQ_API_KEY"):
         # Fallback logic
@@ -74,7 +75,8 @@ def _perform_clinical_triage(response: str, side_effect: bool) -> dict:
         }
 
     try:
-        completion = _groq.chat.completions.create(
+        completion = await asyncio.to_thread(
+            _groq.chat.completions.create,
             messages=[
                 {
                     "role": "system",
@@ -104,7 +106,7 @@ def _perform_clinical_triage(response: str, side_effect: bool) -> dict:
         }
 
 
-def _optional_empathetic_reply(response: str, side_effect: bool) -> str | None:
+async def _optional_empathetic_reply(response: str, side_effect: bool) -> str | None:
     if _groq is None or not os.environ.get("GROQ_API_KEY"):
         if side_effect:
             return (
@@ -114,7 +116,8 @@ def _optional_empathetic_reply(response: str, side_effect: bool) -> str | None:
         return "Thank you for the update. Keep taking your medication as prescribed unless your clinician advises otherwise."
 
     try:
-        completion = _groq.chat.completions.create(
+        completion = await asyncio.to_thread(
+            _groq.chat.completions.create,
             messages=[
                 {
                     "role": "system",

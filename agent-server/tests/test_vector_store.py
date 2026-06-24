@@ -4,17 +4,22 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from db.vector_store import ClinicalVectorStore, SIMILARITY_THRESHOLD
+from db.vector_store import ClinicalVectorStore
 
 
 @pytest.fixture
 def mock_chroma():
+    from db.vector_store import _store as global_store
+    saved = global_store
+    import db.vector_store as vs
+    vs._store = None
     with patch("db.vector_store.chromadb.Client") as mock_client_cls:
         mock_client = MagicMock()
         mock_collection = MagicMock()
         mock_client.get_or_create_collection.return_value = mock_collection
         mock_client_cls.return_value = mock_client
         yield mock_client, mock_collection
+    vs._store = saved
 
 
 @pytest.fixture

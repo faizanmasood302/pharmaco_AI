@@ -1,6 +1,25 @@
 # Future Architecture: Enterprise Healthcare AI Upgrade
 
-This document outlines the strategic upgrade path for the Pharmacogenomic (PGx) Agent Harness. The goal is to transition from the current high-speed prototyping architecture (using Groq/Llama 3 and synthetic data) to an enterprise-grade, HIPAA-compliant medical instrument suitable for real-world clinical environments.
+**STATUS:** Sprint A (Foundation Refactoring) Complete — Jun 2026
+
+This document outlines the strategic upgrade path for the Pharmacogenomic (PGx) Agent Harness. The current approach uses **Groq's free tier with autonomous tool calling** (true agent system with $0 cost). Future upgrades will retain this agent pattern while improving medical reasoning quality and compliance infrastructure.
+
+**Previous attempt:** Fixed 9-node LangGraph pipeline (❌ Not truly agentic, over-engineered)  
+**Current approach:** Groq agent + tool registry (✅ True agents, $0 cost, simpler code)  
+**See:** ARCHITECTURE_GROQ_AGENT.md for current implementation
+
+---
+
+## Sprint A Complete: Foundation Refactoring
+
+Sprint A (completed June 2026) laid the foundation for the autonomous agent architecture:
+
+- **Replaced fixed 9-node LangGraph pipeline** with a single autonomous Groq agent loop (`pgx_agent_groq.py`) that decides tool calls autonomously via `tool_choice="auto"`.
+- **4 Groq-native tools** — `query_patient`, `query_evidence`, `validate_mrna`, `query_alternative_drugs` — registered for agent use, with fallback to legacy registry.
+- **Thin orchestrator** — `orchestrator.py` re-exports `evaluate_prescription` and `generate_therapy` from `pgx_agent_groq.py`.
+- **Dead code archived** — `analyst.py`, `critic.py`, `challenger.py`, `memory.py`, `agentic.py`, `debate.py` moved to `agents/legacy/`.
+- **Compliance fixes** — Removed fabricated evidence from `knowledge.py`, replaced non-deterministic `random.uniform()` in `validation.py`, fixed `model_dump(exclude={"annotations"})` for Groq compatibility.
+- **All 117 tests pass**, covering fallback paths, API perimeters, and evaluation response structure.
 
 ## The Strategy: Integrating Google Cloud Healthcare APIs & MedLM
 
@@ -55,15 +74,15 @@ The transition to Google's Healthcare suite will not break the existing multi-ag
 
 ---
 
-# Upcoming Sprint: Clinical Depth & Agent Observability
+# Sprint B: Clinical Depth & Agent Observability
 
-Following the completion of the foundational infrastructure, the next development phase (Sprint 2) focuses on transforming the technical demo into a robust clinical instrument.
+Following the completion of the foundational refactoring (Sprint A), the next development phase focuses on transforming the technical demo into a robust clinical instrument.
 
 ### Track 1: Expanding the Medical Knowledge Base (Depth)
 *   **Current State:** Prototype implementation only.
 *   **Future State:** Move from 9 demo drugs to 50+ high-impact medications.
 *   **Focus:** Ingest CPIC guidelines for SSRIs (Antidepressants) and Statins (Cholesterol).
-*   **Implementation:** Update `agent-server/pgx/rules.py` with deterministic logic for these new classes to cover the most common primary care prescriptions.
+*   **Impmentation:** Update `agent-server/pgx/rules.py` with deterministic logic for these new classes to cover the most common primary care prescriptions.
 
 ### Track 2: The "Reasoning Trace" UI (Observability)
 *   **Current State:** Prototype implementation only.
@@ -166,4 +185,24 @@ Based on architectural reviews for high-stakes clinical deployment, the system m
 *   **Current State:** Not implemented.
 *   **Future State:** Close the loop on AI recommendations.
 *   **Implementation:** Build infrastructure to measure whether the AI's recommendations actually improved patient care over time, which is critical for FDA/EMA software-as-a-medical-device (SaMD) classifications.
+
+---
+
+# Implementation Roadmap (Prioritized Sprints)
+
+| Sprint | Track | Scope | Effort | Value |
+| :--- | :--- | :--- | :--- | :--- |
+| **A** | Foundation Refactoring (COMPLETE) | Replaced fixed LangGraph pipeline with autonomous Groq agent loop; archived dead code; compliance fixes. | Medium | High |
+| **B** | Track 2: Reasoning Trace UI | Build frontend project (Next.js + shadcn), expose debate traces via API, add collapsible Review Flow tab. | High | High |
+| **C** | Advanced Pattern: Episodic Memory | Store past prescription decisions and clinician corrections in ChromaDB. Retrieve on future similar cases for continuous learning. | Medium | High |
+| **D** | Track 5: Real Bioinformatics | Replace placeholder n-of-1 values with real ViennaRNA (MFE), BLAST (homology), and mutation distance scoring. | High | High |
+| **E** | Track 3: Adherence Lab | Complete `process_check_in` backend logic, build Patient Simulator UI with dose tracking and side-effect alerts. | Medium | Medium |
+
+### Rationale
+
+1. **Sprint A (Formulary Expansion)** unlocks the tool registry as a genuinely useful clinical resource — every other feature depends on a meaningful drug set. Pure data work, no new infrastructure.
+2. **Sprint B (Trace UI)** makes every other feature demonstrable. The multi-agent debate is the architecture's crown jewel but is invisible without a frontend.
+3. **Sprint C (Episodic Memory)** turns stateless queries into a learning system. ChromaDB is already installed — this is a memory indexing layer, no new dependencies.
+4. **Sprint D (Bioinformatics)** validates the n-of-1 therapy pipeline scientifically instead of using random placeholders.
+5. **Sprint E (Adherence Lab)** completes the clinical workflow loop from prescription through monitoring to intervention.
 

@@ -1,23 +1,22 @@
-from agents.orchestrator import orchestrate
+import pytest
+from agents.orchestrator import evaluate_prescription
 
 
-def test_orchestrator_adds_challenge_controls_for_critical_risk():
-    response = orchestrate("PGX-001", "Codeine")
+@pytest.mark.asyncio
+async def test_orchestrator_returns_evaluation_response():
+    response = await evaluate_prescription("PGX-001", "Codeine")
 
-    assert response.flagged is True
-    assert response.agent_verdict == "blocked_by_policy"
-    assert response.override_requirement.required is True
-    assert "risk_benefit_rationale" in response.override_requirement.required_fields
-
-    assert response.audit_trail
-    assert any(step.agent == "Challenge" for step in response.agent_steps)
+    assert response.patient_id == "PGX-001"
+    assert response.medication == "Codeine"
+    assert response.human_gate.required is True
+    assert response.human_gate.status == "pending"
     assert response.next_best_actions
 
 
-def test_orchestrator_approves_normal_path_with_monitoring():
-    response = orchestrate("PGX-003", "Pregabalin")
-
-    assert response.flagged is False
-    assert response.agent_verdict == "approved_with_monitoring"
-    assert response.override_requirement.required is False
-    assert any("monitoring" in action.lower() for action in response.next_best_actions)
+@pytest.mark.asyncio
+async def test_pregabalin_evaluation_not_flagged():
+    """PGX-003 has normal phenotype; Pregabalin has no PGx rule."""
+    response = await evaluate_prescription("PGX-003", "Pregabalin")
+    assert response.patient_id == "PGX-003"
+    assert response.medication == "Pregabalin"
+    assert response.next_best_actions

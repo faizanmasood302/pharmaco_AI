@@ -6,7 +6,8 @@ from agents.reporter import generate_clinical_note
 from models import AgentStep, CypProfileOut, EvaluationResponse, PatientOut
 
 
-def test_generate_clinical_note_fallback():
+@pytest.mark.asyncio
+async def test_generate_clinical_note_fallback():
     # Mock evaluation response
     eval_resp = EvaluationResponse(
         status="success",
@@ -45,7 +46,7 @@ def test_generate_clinical_note_fallback():
     )
 
     # This should work even without Groq API key (fallback)
-    note = generate_clinical_note(eval_resp)
+    note = await generate_clinical_note(eval_resp)
     assert "PHARMACOGENOMIC" in note.upper()
     assert "CONSULTATION" in note.upper()
     assert "Test Patient" in note

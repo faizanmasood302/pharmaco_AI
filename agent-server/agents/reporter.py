@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import time
@@ -22,7 +23,7 @@ except Exception:
     _groq = None
 
 
-def generate_clinical_note(evaluation_input: Any) -> str:
+async def generate_clinical_note(evaluation_input: Any) -> str:
     """Generate a structured EHR-ready clinical note from an evaluation."""
 
     # FORCE conversion to Pydantic model to prevent 'dict' attribute errors
@@ -93,7 +94,8 @@ def generate_clinical_note(evaluation_input: Any) -> str:
             "Tone: Professional, objective, and concise. Use medical terminology."
         )
 
-        completion = _groq.chat.completions.create(
+        completion = await asyncio.to_thread(
+            _groq.chat.completions.create,
             messages=[
                 {
                     "role": "system",

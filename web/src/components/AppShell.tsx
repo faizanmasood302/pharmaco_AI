@@ -11,7 +11,8 @@ export type Tab =
   | "PATHWAY"
   | "REPORTS"
   | "TRIAGE"
-  | "RESEARCH";
+  | "RESEARCH"
+  | "REVIEW_FLOW";
 
 interface AppShellProps {
   children: (activeTab: Tab) => React.ReactNode;
@@ -24,6 +25,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "REPORTS", label: "Clinical Reports", icon: "description" },
   { id: "TRIAGE", label: "Adherence Triage", icon: "assignment_ind" },
   { id: "RESEARCH", label: "N-of-1 Research", icon: "science" },
+  { id: "REVIEW_FLOW", label: "Review Flow", icon: "account_tree" },
 ];
 
 export default function AppShell({ children }: AppShellProps) {

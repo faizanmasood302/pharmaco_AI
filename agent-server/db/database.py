@@ -29,16 +29,47 @@ _local_therapy_validation_results: dict[str, dict[str, Any]] = {}
 _local_therapy_audit_events: dict[str, list[dict[str, Any]]] = {}
 
 
+_HAS_WARMED_UP = False
+
+
 def get_connection():
     if not DATABASE_URL:
         return None
     try:
-        conn = psycopg2.connect(DATABASE_URL)
+        conn = psycopg2.connect(
+            DATABASE_URL,
+            connect_timeout=10,
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=10,
+            keepalives_count=3,
+        )
         conn.autocommit = True
         return conn
     except Exception as exc:
-        logger.error("Failed to connect to database: %s", exc)
+        logger.warning("Failed to connect to database: %s", exc)
         return None
+
+
+def warmup_database() -> bool:
+    """Ping the database on startup to avoid cold-start delays on first real query."""
+    global _HAS_WARMED_UP
+    if _HAS_WARMED_UP:
+        return True
+    conn = get_connection()
+    if conn is None:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+        _HAS_WARMED_UP = True
+        logger.info("Database connection warmed up successfully")
+        return True
+    except Exception as exc:
+        logger.warning("Database warm-up failed: %s", exc)
+        return False
+    finally:
+        conn.close()
 
 
 def fetchone(query: str, params: tuple = ()) -> dict[str, Any] | None:
@@ -131,10 +162,14 @@ def _row_to_patient(row: dict[str, Any]) -> PatientRecord:
 
 def get_patient_by_id(patient_id: str) -> PatientRecord | None:
     pid = patient_id.upper()
+    # Check in-memory cache first to avoid NeonDB cold-start timeout on seed data
+    cached = get_patient(pid)
+    if cached:
+        return cached
     row = fetchone("SELECT * FROM patients WHERE id = %s", (pid,))
     if row:
         return _row_to_patient(row)
-    return get_patient(pid)
+    return None
 
 
 def list_all_patients() -> list[PatientRecord]:
@@ -146,8 +181,12 @@ def list_all_patients() -> list[PatientRecord]:
 
 def upsert_patient(patient: PatientRecord) -> PatientRecord:
     p_in = PatientIn(**patient)
-    data_to_save = p_in.model_dump(exclude={"display_name"})
+    # Use mode="json" to guarantee all values (including nested CypProfileOut)
+    # are serialized to JSON-safe plain Python types that psycopg2 can adapt.
+    data_to_save = p_in.model_dump(mode="json", exclude={"display_name"})
     data_to_save["id"] = data_to_save["id"].upper()
+    # Explicitly serialize cyp_profiles to avoid any psycopg2 adapter issues
+    data_to_save["cyp_profiles"] = json.dumps(data_to_save["cyp_profiles"])
 
     conn = get_connection()
     if conn is not None:

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 import os
 import uuid
@@ -29,9 +27,8 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 from agents.adherence import process_check_in, start_adherence_monitoring
-from agents.orchestrator import orchestrate
+from agents.orchestrator import evaluate_prescription as orchestrate
 from agents.reporter import generate_clinical_note
-from agents.therapy_orchestrator import orchestrate_therapy_generation
 from auth import verify_token
 from db.database import (
     get_clinical_reports_by_patient,
@@ -40,9 +37,7 @@ from db.database import (
     list_evaluations,
     list_medications,
     save_clinical_report,
-    save_therapy_generation,
     update_evaluation_decision,
-    update_therapy_decision,
     upsert_patient,
 )
 from exceptions import InternalServerError, PharmacogenomicError
@@ -56,18 +51,36 @@ from models import (
     FhirIngestRequest,
     PrescriptionRequest,
     ReviewDecisionRequest,
-    TherapyGenerationRequest,
-    TherapyGenerationResponse,
 )
 from pgx.rules import DRUG_RULES
+
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Warm up database on start; connect MCP servers; clean up on shutdown."""
+    from agents.mcp_client import MCPClient
+    await MCPClient.get_instance().connect_all()
+
+    from db.database import warmup_database as _warmup
+    import threading
+    t = threading.Thread(target=_warmup, daemon=True)
+    t.start()
+    yield
+
+    await MCPClient.get_instance().disconnect_all()
+
 
 app = FastAPI(
     title="Pharmacogenomic Agent Server",
     description="AI agent harness for n-of-1 prescribing decisions",
     version="0.2.0",
+    lifespan=lifespan,
     openapi_url="/api/openapi.json",
     docs_url="/api/docs"
 )
+
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -166,20 +179,16 @@ async def root(request: Request):
 @app.get("/api/medications")
 @limiter.limit("20/minute")
 async def list_medications_endpoint(request: Request, user_id: str = Depends(verify_token)):
-    meds = list_medications()
-    if not meds:
-        # Fallback to demo defaults if DB is empty or unreachable
-        return {
-            "medications": [
-                {
-                    "name": rule.name,
-                    "enzyme": rule.enzyme,
-                    "is_prodrug": rule.is_prodrug
-                }
-                for rule in DRUG_RULES.values()
-            ]
-        }
-    return {"medications": meds}
+    return {
+        "medications": [
+            {
+                "name": rule.name,
+                "enzyme": rule.enzyme,
+                "is_prodrug": rule.is_prodrug
+            }
+            for rule in DRUG_RULES.values()
+        ]
+    }
 
 
 class ClinicalReportRequest(BaseModel):
@@ -316,7 +325,7 @@ async def evaluate_prescription(
     # Normalized ID casing for audit - Fix M9
     patient_id_normalized = eval_payload.patient_id.upper()
     
-    result = orchestrate(patient_id_normalized, eval_payload.medication)
+    result = await orchestrate(patient_id_normalized, eval_payload.medication)
     
     # Log the access to the patient's data
     from audit import log_audit
@@ -360,7 +369,7 @@ async def create_note(
                 detail="Clinical note generation requires an approved human gate.",
             )
         # Pass the Pydantic model directly to the generator
-        note = generate_clinical_note(result)
+        note = await generate_clinical_note(result)
         return {"note": note}
     except HTTPException:
         raise
@@ -397,7 +406,7 @@ async def submit_check_in(
 ):
     try:
         # Fixed: Corrected parameter names to match process_check_in signature
-        result = process_check_in(check_in_id, payload.response, payload.side_effect_reported)
+        result = await process_check_in(check_in_id, payload.response, payload.side_effect_reported)
         if result.get("status") == "error":
             raise HTTPException(
                 status_code=404,
@@ -462,104 +471,6 @@ async def review_evaluation_decision(
     except Exception as e:
         logger.error(f"Evaluation decision update failed: {e}")
         raise InternalServerError(f"Decision update failed: {str(e)}") from e
-
-
-@app.post("/api/therapy-requests/{therapy_request_id}/decision")
-@limiter.limit("20/minute")
-async def review_therapy_decision(
-    request: Request,
-    therapy_request_id: str,
-    payload: ReviewDecisionRequest,
-    user_id: str = Depends(verify_token),
-):
-    decision = payload.decision.lower().strip()
-    if decision not in {"approved", "rejected"}:
-        raise HTTPException(status_code=400, detail="decision must be 'approved' or 'rejected'")
-
-    try:
-        updated = update_therapy_decision(
-            therapy_request_id,
-            decision,
-            reviewer=payload.reviewer or user_id,
-            rationale=payload.rationale,
-        )
-        if not updated:
-            raise HTTPException(status_code=404, detail="Therapy request not found")
-
-        from audit import log_audit
-
-        log_audit(
-            user_id=user_id,
-            action="REVIEW_THERAPY_RESEARCH",
-            resource_id=therapy_request_id,
-            details={
-                "decision": decision,
-                "reviewer": payload.reviewer or user_id,
-                "rationale": payload.rationale,
-            },
-            request=request,
-        )
-
-        return {
-            "therapy_request_id": therapy_request_id,
-            "decision": decision,
-            "result": updated.get("result_json", updated),
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Therapy decision update failed: {e}")
-        raise InternalServerError(f"Decision update failed: {str(e)}") from e
-
-
-@app.post("/api/generate-therapy", response_model=TherapyGenerationResponse)
-@limiter.limit("5/minute")
-async def generate_therapy_endpoint(
-    request: Request,
-    eval_payload: TherapyGenerationRequest,
-    user_id: str = Depends(verify_token)
-):
-    logger.info(
-        "Initiating therapy generation", 
-        extra={
-            "patient_id": eval_payload.patient_id, 
-            "target_disease": eval_payload.target_disease,
-            "user_id": user_id
-        }
-    )
-    
-    patient_id_normalized = eval_payload.patient_id.upper()
-    result = orchestrate_therapy_generation(
-        patient_id_normalized,
-        eval_payload.target_disease,
-        eval_payload.max_iterations,
-    )
-    result.therapy_request_id = save_therapy_generation(result.model_dump())
-    
-    # Audit log
-    from audit import log_audit
-    log_audit(
-        user_id=user_id,
-        action="GENERATE_THERAPY",
-        patient_id=patient_id_normalized,
-        resource_id=result.target_disease,
-        details={
-            "status": result.status,
-            "iterations": result.iterations,
-            "toxicity_score": result.toxicity_score
-        },
-        request=request
-    )
-
-    logger.info(
-        "Generation complete", 
-        extra={
-            "patient_id": patient_id_normalized,
-            "status": result.status,
-            "user_id": user_id
-        }
-    )
-    return result
 
 
 if __name__ == "__main__":

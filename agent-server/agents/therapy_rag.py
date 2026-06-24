@@ -1,3 +1,7 @@
+# NOTE: This module is part of a previous mRNA candidate validation feature and is
+# out of scope for the PGx prescribing pipeline. It is kept for legacy test compatibility
+# but is NOT load-bearing in the multi-agent PGx evaluation workflow.
+
 from __future__ import annotations
 
 import logging
@@ -13,6 +17,8 @@ logger = logging.getLogger(__name__)
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "knowledge"
 
 SIMILARITY_THRESHOLD = 0.25
+HIGH_QUALITY_THRESHOLD = 0.5
+MODERATE_QUALITY_THRESHOLD = 0.35
 
 CORE_TERMS = {
     "mrna", "therapy", "target", "candidate",
@@ -174,9 +180,9 @@ def retrieve_therapy_evidence(
         policy_present = any("n_of_1" in source for source in sources)
 
         # Deterministic evidence quality based on similarity scores
-        if avg_similarity >= 0.5 and len(sources) >= 2 and policy_present:
+        if avg_similarity >= HIGH_QUALITY_THRESHOLD and len(sources) >= 2 and policy_present:
             evidence_quality = "high"
-        elif avg_similarity >= 0.35:
+        elif avg_similarity >= MODERATE_QUALITY_THRESHOLD:
             evidence_quality = "moderate"
         else:
             evidence_quality = "low"

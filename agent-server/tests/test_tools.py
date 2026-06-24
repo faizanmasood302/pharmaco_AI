@@ -93,7 +93,7 @@ def test_execute_tool_success(empty_registry):
         return str(int(x) * 2)
 
     result = execute_tool("double", {"x": "5"})
-    assert result == "10"
+    assert "10" in result
 
 
 def test_execute_tool_not_found(empty_registry):
@@ -218,15 +218,18 @@ class TestCalculateEgfr:
         assert "mL/min" in result
 
     def test_female_adjustment(self):
+        import json
         result_m = execute_tool(
             "calculate_egfr", {"age": "40", "sex": "M", "creatinine": "1.0", "weight_kg": "70"}
         )
         result_f = execute_tool(
             "calculate_egfr", {"age": "40", "sex": "F", "creatinine": "1.0", "weight_kg": "70"}
         )
-        m_value = float(result_m.split(":")[1].strip().split()[0])
-        f_value = float(result_f.split(":")[1].strip().split()[0])
-        assert f_value < m_value
+        data_m = json.loads(result_m)
+        data_f = json.loads(result_f)
+        m_crcl = float(data_m["result"].split(":")[1].strip().split()[0])
+        f_crcl = float(data_f["result"].split(":")[1].strip().split()[0])
+        assert f_crcl < m_crcl
 
     def test_invalid_input(self):
         result = execute_tool(

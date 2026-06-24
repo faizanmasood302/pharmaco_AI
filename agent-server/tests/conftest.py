@@ -15,11 +15,9 @@ from pgx.patients import PatientRecord
 @pytest.fixture(autouse=True)
 def isolate_external_services(monkeypatch):
     """Keep tests deterministic and offline even when Supabase env vars are set."""
-    import agents.agentic as agentic
     import db.database as db
 
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
-    monkeypatch.setattr(agentic, "_groq", None)
     monkeypatch.setattr(db, "DATABASE_URL", "")
     db._local_evaluations.clear()
     db._local_plans.clear()
