@@ -6,9 +6,8 @@ import os
 from dotenv import load_dotenv
 
 from agents.base import run_specialist_agent
-from agents.mcp_client import call_tool as _mcp_call
 from models import SpecialistOpinion
-from pgx.patients import extract_phenotype as _extract_phenotype
+from pgx.rules import assess_prescription
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -78,24 +77,19 @@ async def evaluate_cost(patient_id: str, medication: str) -> SpecialistOpinion:
 
 
 async def _fallback(patient_id: str, medication: str) -> SpecialistOpinion:
-    patient_data = await _mcp_call("query_patient", {"patient_id": patient_id})
-    drug_data = await _mcp_call("query_drug_db", {"medication": medication})
+    result = assess_prescription(patient_id, medication)
+    preferred_alt = result.recommended_alternative
 
-    phenotype = _extract_phenotype(patient_data)
-    is_prodrug = "prodrug" in drug_data.lower()
-    alternatives = _extract_alternatives(drug_data)
-
-    preferred_alt = alternatives[0] if alternatives else None
-
-    if preferred_alt and is_prodrug and "ultra-rapid" in phenotype.lower():
+    if result.flagged and preferred_alt and preferred_alt != medication:
         summary = (
             f"Switch from {medication} to {preferred_alt}. "
-            f"UM + prodrug causes toxicity-related costs; {preferred_alt} is phenotype-safe."
+            f"PGx risk ({result.risk_level}) makes the switch cost-effective "
+            f"by avoiding adverse events and therapeutic failure."
         )
     elif preferred_alt:
         summary = f"{preferred_alt} is a cost-effective alternative for {medication}."
     else:
-        summary = f"No cost-effective alternative identified for {medication}."
+        summary = f"No alternative identified for {medication}. Current drug is the most cost-effective PGx-safe option."
 
     return SpecialistOpinion(
         agent_name="CostNavigator",
@@ -103,16 +97,7 @@ async def _fallback(patient_id: str, medication: str) -> SpecialistOpinion:
         flagged=False,
         risk_summary=summary,
         recommendation=preferred_alt or medication,
-        reasoning=f"Fallback deterministic evaluation.\nPatient: {patient_data}\nDrug: {drug_data}",
-        confidence=0.7,
-        evidence_refs=["query_patient", "query_drug_db"],
+        reasoning=f"Deterministic cost assessment via assess_prescription().\nRisk: {result.risk_level}\nAlternative: {result.recommended_alternative}\nRationale: {result.alternative_rationale}",
+        confidence=0.85,
+        evidence_refs=["assess_prescription"],
     )
-
-
-def _extract_alternatives(drug_data: str) -> list[str]:
-    import re
-    alt_section = re.search(r"Alternatives:\s*(.+)", drug_data)
-    if alt_section:
-        alts = alt_section.group(1).strip()
-        return [a.strip() for a in alts.split(",") if a.strip() and a.strip() != "None"]
-    return []

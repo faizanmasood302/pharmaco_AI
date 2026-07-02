@@ -6,9 +6,8 @@ import os
 from dotenv import load_dotenv
 
 from agents.base import log_risk_discrepancy, run_specialist_agent
-from agents.mcp_client import call_tool as _mcp_call
 from models import SpecialistOpinion
-from pgx.patients import extract_phenotype
+from pgx.rules import assess_prescription
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -73,34 +72,20 @@ async def evaluate_rx_risk(patient_id: str, medication: str) -> SpecialistOpinio
 
 
 async def _fallback(patient_id: str, medication: str) -> SpecialistOpinion:
-    patient_data = await _mcp_call("query_patient", {"patient_id": patient_id})
-    drug_data = await _mcp_call("query_drug_db", {"medication": medication})
-
-    is_prodrug = "prodrug" in drug_data.lower()
-    pheno = extract_phenotype(patient_data)
-    is_um = pheno == "ultra-rapid metabolizer"
-    is_pm = pheno == "poor metabolizer"
-
-    if is_um and is_prodrug:
-        risk = "high"
-        flagged = True
-        summary = f"Ultra-rapid metabolizer + prodrug ({medication}) → risk of toxicity"
-    elif is_pm and is_prodrug:
-        risk = "high"
-        flagged = True
-        summary = f"Poor metabolizer + prodrug ({medication}) → no therapeutic effect"
-    else:
-        risk = "low"
-        flagged = False
-        summary = f"Standard risk profile for {medication}"
+    result = assess_prescription(patient_id, medication)
 
     return SpecialistOpinion(
         agent_name="RxRisk",
-        risk_level=risk,
-        flagged=flagged,
-        risk_summary=summary,
-        recommendation="Avoid" if flagged else "Standard dosing",
-        reasoning=f"Fallback deterministic evaluation.\nPatient: {patient_data}\nDrug: {drug_data}",
-        confidence=0.7,
-        evidence_refs=["query_patient", "query_drug_db"],
+        risk_level=result.risk_level,
+        flagged=result.flagged,
+        risk_summary=result.risk_summary,
+        recommendation="Avoid" if result.flagged else "Standard dosing",
+        reasoning=(
+            f"Deterministic assessment via assess_prescription().\n"
+            f"Risk: {result.risk_level}\n"
+            f"Summary: {result.risk_summary}\n"
+            f"Alternative: {result.recommended_alternative}"
+        ),
+        confidence=0.9,
+        evidence_refs=["assess_prescription"],
     )

@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
 
 from dotenv import load_dotenv
 
 from agents.base import log_risk_discrepancy, run_specialist_agent
-from agents.mcp_client import call_tool as _mcp_call
 from models import SpecialistOpinion
-from pgx.patients import extract_phenotype as _extract_phenotype
+from pgx.rules import assess_prescription, RiskLevel
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -73,40 +71,23 @@ async def evaluate_adherence(patient_id: str, medication: str) -> SpecialistOpin
 
 
 async def _fallback(patient_id: str, medication: str) -> SpecialistOpinion:
-    patient_data = await _mcp_call("query_patient", {"patient_id": patient_id})
-    drug_data = await _mcp_call("query_drug_db", {"medication": medication})
+    result = assess_prescription(patient_id, medication)
 
-    phenotype = _extract_phenotype(patient_data)
-    is_prodrug = "Is prodrug: True" in drug_data
-    pheno_key = phenotype.lower() if phenotype else ""
-
-    drug_enzyme = ""
-    try:
-        parsed = json.loads(drug_data)
-        inner = parsed.get("result", drug_data)
-    except (json.JSONDecodeError, TypeError):
-        inner = str(drug_data)
-    for line in inner.split("\n"):
-        if line.startswith("Enzyme:"):
-            drug_enzyme = line.split(":", 1)[1].strip()
-            break
-
-    if drug_enzyme in ("", "—"):
-        risk = "low"
-        flagged = False
-        summary = f"{medication} is not CYP-metabolized. Standard adherence applies."
-    elif pheno_key == "ultra-rapid metabolizer" and is_prodrug:
+    if result.risk_level in (RiskLevel.CRITICAL, RiskLevel.HIGH):
         risk = "moderate"
         flagged = True
-        summary = f"UM + prodrug: potential toxicity side effects may reduce adherence."
-    elif pheno_key == "poor metabolizer" and is_prodrug:
-        risk = "high"
-        flagged = True
-        summary = f"PM + prodrug: no therapeutic effect — highest abandonment risk."
+        summary = (
+            f"{result.risk_summary} — High PGx risk may reduce adherence "
+            f"due to side effects or lack of efficacy."
+        )
+    elif result.risk_level == RiskLevel.MODERATE:
+        risk = "low"
+        flagged = False
+        summary = f"{result.risk_summary} — Monitor for adherence but PGx-driven risk is manageable."
     else:
         risk = "low"
         flagged = False
-        summary = f"Standard adherence risk for {medication} in {phenotype}."
+        summary = f"Standard adherence risk for {medication}. No PGx-driven concern."
 
     return SpecialistOpinion(
         agent_name="Adherence",
@@ -114,7 +95,7 @@ async def _fallback(patient_id: str, medication: str) -> SpecialistOpinion:
         flagged=flagged,
         risk_summary=summary,
         recommendation="Monitor adherence" if flagged else "Standard monitoring",
-        reasoning=f"Fallback deterministic evaluation.\nPatient: {patient_data}\nDrug: {drug_data}",
-        confidence=0.7,
-        evidence_refs=["query_patient", "query_drug_db"],
+        reasoning=f"Deterministic adherence derived from assess_prescription().\nRx risk: {result.risk_level}\n{result.risk_summary}",
+        confidence=0.85,
+        evidence_refs=["assess_prescription"],
     )

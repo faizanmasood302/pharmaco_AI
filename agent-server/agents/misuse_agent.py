@@ -6,9 +6,8 @@ import os
 from dotenv import load_dotenv
 
 from agents.base import log_risk_discrepancy, run_specialist_agent
-from agents.mcp_client import call_tool as _mcp_call
 from models import SpecialistOpinion
-from pgx.patients import extract_phenotype as _extract_phenotype
+from pgx.rules import assess_prescription, RiskLevel
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -77,34 +76,39 @@ async def evaluate_misuse_risk(patient_id: str, medication: str) -> SpecialistOp
 
 
 async def _fallback(patient_id: str, medication: str) -> SpecialistOpinion:
-    patient_data = await _mcp_call("query_patient", {"patient_id": patient_id})
-    drug_data = await _mcp_call("query_drug_db", {"medication": medication})
-
-    phenotype = _extract_phenotype(patient_data)
-    is_prodrug = "Is prodrug: True" in drug_data
     is_opioid = any(d in medication.lower() for d in ["codeine", "tramadol", "hydrocodone", "oxycodone", "morphine", "fentanyl"])
-    pheno_lower = phenotype.lower() if phenotype else ""
 
     if not is_opioid:
-        risk = "low"
-        flagged = False
-        summary = f"{medication} is not an opioid. Standard prescribing risk applies."
-    elif is_prodrug and pheno_lower == "ultra-rapid metabolizer":
-        risk = "high"
-        flagged = True
-        summary = f"UM + prodrug opioid: rapid conversion creates euphoric peak. HIGH misuse risk (FDA black box)."
-    else:
-        risk = "low"
-        flagged = False
-        summary = f"Standard opioid monitoring for {phenotype} (CPIC: no PGx-driven flag)."
+        return SpecialistOpinion(
+            agent_name="MisuseMonitor",
+            risk_level="low",
+            flagged=False,
+            risk_summary=f"{medication} is not an opioid. No PGx-driven misuse concern.",
+            recommendation="Standard monitoring",
+            reasoning=f"Non-opioid drug ({medication}) — no abuse liability.",
+            confidence=0.95,
+            evidence_refs=[],
+        )
+
+    result = assess_prescription(patient_id, medication)
+
+    risk_map = {
+        RiskLevel.CRITICAL: "high",
+        RiskLevel.HIGH: "high",
+        RiskLevel.MODERATE: "moderate",
+        RiskLevel.LOW: "low",
+        RiskLevel.NONE: "low",
+    }
+    risk = risk_map.get(result.risk_level, "low")
+    flagged = risk in ("high", "moderate")
 
     return SpecialistOpinion(
         agent_name="MisuseMonitor",
         risk_level=risk,
         flagged=flagged,
-        risk_summary=summary,
+        risk_summary=f"Opioid + PGx risk ({result.risk_level}): {result.risk_summary}",
         recommendation="Strict monitoring agreement" if flagged else "Standard monitoring",
-        reasoning=f"Fallback deterministic evaluation.\nPatient: {patient_data}\nDrug: {drug_data}",
-        confidence=0.7,
-        evidence_refs=["query_patient", "query_drug_db"],
+        reasoning=f"Deterministic misuse assessment via assess_prescription().\nRx risk: {result.risk_level}\n{result.risk_summary}",
+        confidence=0.9,
+        evidence_refs=["assess_prescription"],
     )
