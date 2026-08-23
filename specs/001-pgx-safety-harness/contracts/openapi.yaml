@@ -1,0 +1,605 @@
+openapi: 3.1.0
+
+info:
+  title: GenomicLens Engine A API
+  version: 1.0.0-draft
+  description: >
+    Pharmacogenomic decision support. Research and education only, on synthetic data.
+    Not a medical device. No endpoint issues a prescription or directs an action.
+
+
+    Contract rule, binding: every endpoint accepts identifiers. No endpoint accepts a state
+    object, a gate status, an approval flag, or any other server-owned value in a request body.
+    This is constitution Principle VII, and the generated TypeScript types make a violation a
+    compile error rather than a runtime surprise.
+
+
+    This file is the design-time contract for feature 001. At implementation time FastAPI emits
+    the authoritative schema from the Pydantic domain types, and drift between the two is a
+    failing build.
+
+servers:
+  - url: /v1
+
+tags:
+  - name: profiles
+  - name: assessments
+  - name: evaluations
+  - name: reports
+  - name: inquiry
+  - name: runs
+
+paths:
+  /profiles:
+    post:
+      tags: [profiles]
+      summary: Ingest a genomic profile from VCF, outside calls, or FHIR
+      description: >
+        Halts on contradictory sources for the same gene, naming both (Principle IX).
+        A gene with no recognised mapping is imported as an explicit unknown with its original
+        text preserved; a diplotype is never invented (ADR-0003).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileIngestRequest' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/GenomicProfile' } } } }
+        '409': { description: Contradictory sources — halted, both named, $ref: '#/components/responses/Halted' }
+        '422': { description: Schema validation failed }
+
+  /profiles/{profile_id}:
+    get:
+      tags: [profiles]
+      summary: Retrieve a profile
+      description: Includes every in-scope gene. Unknowns are explicit, never omitted.
+      parameters: [{ $ref: '#/components/parameters/ProfileId' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/GenomicProfile' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Not found }
+
+  /profiles/{profile_id}/coverage:
+    get:
+      tags: [profiles]
+      summary: What is not known for this patient, and why
+      description: >
+        Untyped and uncovered genes with a reason each, drug pairs with no published guidance,
+        and findings resting on unreviewed policy. No gap may be phrased as an assurance of safety.
+      parameters: [{ $ref: '#/components/parameters/ProfileId' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CoverageReport' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /assessments:
+    post:
+      tags: [assessments]
+      summary: Assess one drug against one patient's profile
+      description: >
+        `indication` is required. It must be a member of the curated version-controlled condition
+        list; a value outside that list is refused rather than interpreted (ADR-0001).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssessmentRequest' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Assessment' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { description: Unresolvable drug code, or indication outside the curated list }
+        '502': { $ref: '#/components/responses/EngineError' }
+
+  /assessments/{assessment_id}:
+    get:
+      tags: [assessments]
+      summary: Verdict, findings, and the full considered set of alternatives
+      parameters: [{ $ref: '#/components/parameters/AssessmentId' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AssessmentDetail' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /assessments/{assessment_id}/basis:
+    get:
+      tags: [assessments]
+      summary: The basis endpoint — guideline text, citations, considered set, provenance chain
+      description: >
+        This is the criterion 4 endpoint. It exists so a professional can independently review the
+        basis of a finding rather than rely on its output. Basis before verdict is the ordering the
+        review surface must present, not merely the data it must have available.
+      parameters: [{ $ref: '#/components/parameters/AssessmentId' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Basis' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /evaluations:
+    post:
+      tags: [evaluations]
+      summary: Create a reviewable record for an assessment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [assessment_id]
+              properties:
+                assessment_id: { type: string, format: uuid }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Evaluation' } } } }
+
+  /evaluations/{evaluation_id}:
+    get:
+      tags: [evaluations]
+      summary: Current state, computed as the fold over the transition history
+      parameters: [{ $ref: '#/components/parameters/EvaluationId' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Evaluation' } } } }
+
+  /evaluations/{evaluation_id}/transitions:
+    post:
+      tags: [evaluations]
+      summary: Append one gate transition
+      description: >
+        Requires `assessment_sha256`, which gives content binding and optimistic concurrency in one
+        move — approving a stale assessment is rejected rather than silently accepted. Only the
+        PHARMACIST role may transition to APPROVED. Rejects an illegal transition or a hash mismatch.
+      parameters: [{ $ref: '#/components/parameters/EvaluationId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransitionRequest' }
+      responses:
+        '201': { description: Appended, content: { application/json: { schema: { $ref: '#/components/schemas/GateTransition' } } } }
+        '403': { description: Role may not perform this transition }
+        '409': { description: Hash mismatch, or illegal transition from the current state }
+
+  /evaluations/{evaluation_id}/history:
+    get:
+      tags: [evaluations]
+      summary: The full append-only transition log
+      parameters: [{ $ref: '#/components/parameters/EvaluationId' }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/GateTransition' } }
+
+  /reports:
+    post:
+      tags: [reports]
+      summary: Generate a clinical document for an approved evaluation
+      description: >
+        Accepts `{evaluation_id}` and nothing else. The server loads the record, folds the
+        transition history, verifies APPROVED, and re-verifies the content hash. There is no field
+        in which a caller could supply a forged approval — the attack is unrepresentable rather
+        than merely rejected. Every generated document is marked simulated and carries the
+        research-only footer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [evaluation_id]
+              properties:
+                evaluation_id: { type: string, format: uuid }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Report' } } } }
+        '409': { description: Not approved, or the approval has lapsed because the content changed }
+
+  /qa:
+    post:
+      tags: [inquiry]
+      summary: Grounded follow-up question about an assessment
+      description: >
+        Answers only from the retrieved and assessed set, and says "not covered" otherwise. The
+        answer passes the grounding gate before it reaches a human.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [assessment_id, question]
+              properties:
+                assessment_id: { type: string, format: uuid }
+                question: { type: string, maxLength: 2000 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/GroundedAnswer' } } } }
+
+  /runs/{run_id}/manifest:
+    get:
+      tags: [runs]
+      summary: The replay record — every pinned input that can affect output
+      parameters:
+        - { name: run_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/RunManifest' } } } }
+
+components:
+
+  parameters:
+    ProfileId:    { name: profile_id,    in: path, required: true, schema: { type: string, format: uuid } }
+    AssessmentId: { name: assessment_id, in: path, required: true, schema: { type: string, format: uuid } }
+    EvaluationId: { name: evaluation_id, in: path, required: true, schema: { type: string, format: uuid } }
+
+  responses:
+    Forbidden:
+      description: No care relationship authorises this actor for this patient
+    Halted:
+      description: Processing halted; the reason and the sources involved are named
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Halt' }
+    EngineError:
+      description: >
+        A tool producing clinical values failed. No verdict is returned. This is never
+        downgraded into a low-risk or fallback response.
+
+  schemas:
+
+    Outcome:
+      type: string
+      description: Not a severity, and not orderable against one.
+      enum: [actionable, no_change, no_guidance, halted]
+
+    Severity:
+      type: string
+      description: Present only when outcome is `actionable`; null otherwise.
+      enum: [low, moderate, high, critical]
+
+    Halt:
+      type: object
+      required: [outcome, reason, genes]
+      properties:
+        outcome: { const: halted }
+        reason:
+          type: string
+          enum: [not_genotyped, ambiguous_diplotype, no_cpic_definition,
+                 assay_does_not_cover, contradictory_sources]
+        genes: { type: array, items: { type: string } }
+        sources:
+          type: array
+          description: Populated for contradictory_sources — both are named, never reconciled.
+          items: { type: string }
+        framing:
+          const: missing_data
+          description: A halt is missing data, never a statement about risk or safety.
+
+    PhenotypeCall:
+      oneOf:
+        - $ref: '#/components/schemas/KnownPhenotype'
+        - $ref: '#/components/schemas/UnknownPhenotype'
+      discriminator:
+        propertyName: kind
+        mapping:
+          known: '#/components/schemas/KnownPhenotype'
+          unknown: '#/components/schemas/UnknownPhenotype'
+
+    KnownPhenotype:
+      type: object
+      additionalProperties: false
+      required: [kind, gene, diplotype, vocabulary, term, source]
+      properties:
+        kind: { const: known }
+        gene: { type: string }
+        diplotype: { type: string }
+        vocabulary: { type: string, enum: [metabolizer, function, activity_score, allele_presence] }
+        term: { type: string, description: Validated against ALLOWED_TERMS for this gene. }
+        activity_score: { type: [number, 'null'] }
+        source: { $ref: '#/components/schemas/ToolResult' }
+
+    UnknownPhenotype:
+      type: object
+      additionalProperties: false
+      required: [kind, gene, reason]
+      properties:
+        kind: { const: unknown }
+        gene: { type: string }
+        reason:
+          type: string
+          enum: [not_genotyped, ambiguous_diplotype, no_cpic_definition, assay_does_not_cover]
+        raw_observation:
+          type: [string, 'null']
+          description: The original unrecognised text, preserved for inspection (ADR-0003).
+
+    GenomicProfile:
+      type: object
+      additionalProperties: false
+      required: [id, patient_id, reference_build, panel, calls]
+      properties:
+        id: { type: string, format: uuid }
+        patient_id: { type: string }
+        reference_build: { type: string }
+        panel:
+          type: object
+          description: What the assay actually covered — distinct from what was called.
+        calls:
+          type: object
+          description: One entry per in-scope gene. An uncovered gene is present and marked, never absent.
+          additionalProperties: { $ref: '#/components/schemas/PhenotypeCall' }
+
+    ProfileIngestRequest:
+      type: object
+      additionalProperties: false
+      required: [patient_id, source_kind, payload]
+      properties:
+        patient_id: { type: string }
+        source_kind: { type: string, enum: [vcf, outside_calls, fhir_bundle] }
+        payload: { type: string }
+        assay_id: { type: string }
+        observed_at: { type: string, format: date-time }
+
+    AssessmentRequest:
+      type: object
+      additionalProperties: false
+      required: [profile_id, drug_code, indication]
+      properties:
+        profile_id: { type: string, format: uuid }
+        drug_code:
+          type: string
+          description: Must resolve in the local RxNorm-derived lexicon. An unresolvable name is refused, never near-matched.
+        indication:
+          type: string
+          description: Must be a member of the curated version-controlled condition list (ADR-0001).
+
+    Finding:
+      type: object
+      additionalProperties: false
+      required: [id, gene, severity, action, policy_row_id, provisional]
+      properties:
+        id: { type: string }
+        gene: { type: string }
+        severity: { $ref: '#/components/schemas/Severity' }
+        action: { type: string }
+        policy_row_id: { type: string }
+        provisional:
+          type: boolean
+          description: Derived from the absence of a named reviewer on the policy row. Never stored independently.
+        tool_result_id: { type: string, format: uuid }
+
+    Assessment:
+      type: object
+      additionalProperties: false
+      required: [id, assessment_sha256, profile_id, drug_code, indication, outcome,
+                 findings, policy_version, engine_version, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        assessment_sha256:
+          type: string
+          description: Content hash. Approvals bind to this; when it changes, the approval lapses.
+        profile_id: { type: string, format: uuid }
+        drug_code: { type: string }
+        indication: { type: string }
+        outcome: { $ref: '#/components/schemas/Outcome' }
+        severity:
+          oneOf: [{ $ref: '#/components/schemas/Severity' }, { type: 'null' }]
+          description: Null unless outcome is `actionable`.
+        halt:
+          oneOf: [{ $ref: '#/components/schemas/Halt' }, { type: 'null' }]
+        findings: { type: array, items: { $ref: '#/components/schemas/Finding' } }
+        policy_version: { type: string }
+        corpus_snapshot_id: { type: [string, 'null'] }
+        engine_version: { type: string }
+        created_at: { type: string, format: date-time }
+
+    ConsideredAlternative:
+      type: object
+      additionalProperties: false
+      required: [drug_code, assessment_id, outcome, accepted]
+      properties:
+        drug_code: { type: string }
+        assessment_id:
+          type: string
+          format: uuid
+          description: Its own assessment, run by the same engine against this same patient.
+        outcome: { $ref: '#/components/schemas/Outcome' }
+        severity:
+          oneOf: [{ $ref: '#/components/schemas/Severity' }, { type: 'null' }]
+        accepted: { type: boolean }
+        rank: { type: [integer, 'null'] }
+        rejected_reason: { type: [string, 'null'] }
+
+    AssessmentDetail:
+      allOf:
+        - $ref: '#/components/schemas/Assessment'
+        - type: object
+          required: [considered]
+          properties:
+            considered:
+              type: array
+              description: >
+                Always returned in full, rejects included. A caller that sees only the winners
+                cannot review the basis.
+              items: { $ref: '#/components/schemas/ConsideredAlternative' }
+            no_safe_alternative:
+              type: [object, 'null']
+              description: A first-class result. Never replaced by an unassessed suggestion.
+              properties:
+                reason: { type: string }
+
+    Citation:
+      type: object
+      additionalProperties: false
+      required: [corpus_id, corpus_snapshot_id, document_id]
+      properties:
+        corpus_id: { type: string }
+        corpus_snapshot_id: { type: string, description: An immutable snapshot, never a live API. }
+        document_id: { type: string }
+        section: { type: [string, 'null'] }
+        span:
+          type: [array, 'null']
+          description: Character offsets, never quoted text.
+          items: { type: integer }
+          minItems: 2
+          maxItems: 2
+
+    ToolResult:
+      type: object
+      additionalProperties: false
+      required: [tool_name, tool_version, container_digest, input_sha256, output_sha256,
+                 started_at, duration_ms, exit_code]
+      properties:
+        tool_name: { type: string }
+        tool_version: { type: string }
+        container_digest: { type: string }
+        input_sha256: { type: string }
+        output_sha256: { type: string }
+        started_at: { type: string, format: date-time }
+        duration_ms: { type: integer }
+        exit_code: { type: integer }
+        parameters: { type: object }
+
+    Basis:
+      type: object
+      additionalProperties: false
+      required: [assessment_id, policy_rows, citations, considered, provenance_chain]
+      properties:
+        assessment_id: { type: string, format: uuid }
+        policy_rows:
+          type: array
+          items:
+            type: object
+            required: [id, gene, phenotype_term, drug_code, guideline, table, guideline_version, provisional]
+            properties:
+              id: { type: string }
+              gene: { type: string }
+              phenotype_term: { type: string }
+              drug_code: { type: string }
+              guideline: { type: string }
+              table: { type: string }
+              guideline_version: { type: string }
+              doi: { type: [string, 'null'] }
+              reviewed_by: { type: [string, 'null'] }
+              provisional: { type: boolean }
+              context_sources:
+                type: array
+                description: >
+                  Non-CPIC sources shown as labelled context only. They never set, raise or lower
+                  a severity (ADR-0002).
+                items:
+                  type: object
+                  properties:
+                    source: { type: string }
+                    statement: { type: string }
+        citations: { type: array, items: { $ref: '#/components/schemas/Citation' } }
+        considered: { type: array, items: { $ref: '#/components/schemas/ConsideredAlternative' } }
+        provenance_chain:
+          type: array
+          description: Every input, tool result and policy row that contributed to the verdict.
+          items: { type: object }
+
+    CoverageReport:
+      type: object
+      additionalProperties: false
+      required: [profile_id, untyped_genes, no_guidance_pairs, provisional_findings]
+      properties:
+        profile_id: { type: string, format: uuid }
+        untyped_genes:
+          type: array
+          items:
+            type: object
+            required: [gene, reason]
+            properties:
+              gene: { type: string }
+              reason: { type: string }
+        no_guidance_pairs:
+          type: array
+          items:
+            type: object
+            properties:
+              gene: { type: string }
+              drug_code: { type: string }
+        provisional_findings: { type: array, items: { type: string } }
+
+    GateState:
+      type: string
+      enum: [draft, pending_review, approved, rejected, superseded]
+
+    TransitionRequest:
+      type: object
+      additionalProperties: false
+      required: [to_state, rationale, assessment_sha256]
+      properties:
+        to_state: { $ref: '#/components/schemas/GateState' }
+        rationale: { type: string, minLength: 1 }
+        assessment_sha256:
+          type: string
+          description: The hash of exactly what the actor reviewed. A mismatch is rejected.
+
+    GateTransition:
+      type: object
+      additionalProperties: false
+      required: [id, evaluation_id, from_state, to_state, actor_id, actor_role,
+                 rationale, assessment_sha256, at]
+      properties:
+        id: { type: string, format: uuid }
+        evaluation_id: { type: string, format: uuid }
+        from_state: { $ref: '#/components/schemas/GateState' }
+        to_state: { $ref: '#/components/schemas/GateState' }
+        actor_id: { type: string }
+        actor_role: { type: string, enum: [clinician, pharmacist, researcher, admin] }
+        rationale: { type: string }
+        assessment_sha256: { type: string }
+        at: { type: string, format: date-time }
+
+    Evaluation:
+      type: object
+      additionalProperties: false
+      required: [id, assessment_id, current_state, created_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        current_state:
+          allOf: [{ $ref: '#/components/schemas/GateState' }]
+          description: Computed as the fold over the transition history. There is no stored status column.
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+
+    Report:
+      type: object
+      additionalProperties: false
+      required: [id, evaluation_id, uri, simulated, disclaimer, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        evaluation_id: { type: string, format: uuid }
+        uri: { type: string }
+        simulated: { const: true }
+        disclaimer: { type: string }
+        created_at: { type: string, format: date-time }
+
+    GroundedAnswer:
+      type: object
+      additionalProperties: false
+      required: [text, gate_verdict, cites_citation_ids]
+      properties:
+        text: { type: string }
+        gate_verdict: { type: string, enum: [accepted, regenerated, template_fallback] }
+        cites_finding_ids: { type: array, items: { type: string } }
+        cites_citation_ids: { type: array, items: { type: string } }
+        out_of_scope:
+          type: boolean
+          description: True when the honest answer is "not covered".
+
+    RunManifest:
+      type: object
+      additionalProperties: false
+      required: [id, spec_version, pins, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        spec_version: { type: string }
+        inputs: { type: object }
+        pins:
+          type: object
+          description: >
+            uv.lock hash, every tool image digest and version, corpus snapshot IDs per corpus,
+            severity policy table version, embedding model name and version, LLM model identifier,
+            golden-set version, application spec_version.
+        node_transitions: { type: array, items: { type: object } }
+        seed: { type: [integer, 'null'] }
+        created_at: { type: string, format: date-time }

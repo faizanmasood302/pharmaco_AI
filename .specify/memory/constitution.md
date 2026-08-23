@@ -1,12 +1,45 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change:      1.0.0 -> 1.0.1
+Bump rationale:      PATCH. Two non-semantic corrections. Renaming `ai/graph` to
+                     `ai/orchestration` leaves the layer contract identical -- same
+                     layer, same permitted and forbidden edges -- so it is a rename,
+                     not a material change to the contract, and does not meet the
+                     MAJOR bar. Removing `temperature and seed` from the RunManifest
+                     pin list removes two parameters that are not settable on the
+                     pinned model and were therefore never pinned; determinism was
+                     never claimed for the LLM layer, so no guarantee is weakened.
+
+Source of authority: `HARNESS.md` v1.1 (amended 2026-08-23), IX.1 and IX.6;
+                     ADR-0004 and ADR-0005.
+
+Modified principles: (none)
+
+Modified sections:
+  - Architectural Constraints -- layer contract table: `ai/graph` -> `ai/orchestration`
+  - Architectural Constraints -- RunManifest pin sentence: temperature and seed removed
+
+Added sections:      (none)
+Removed sections:    (none)
+
+Templates requiring updates:
+  ✅ aligned  CLAUDE.md -- Active feature section records the amended stack
+  ✅ aligned  specs/001-pgx-safety-harness/plan.md -- P0-1 closed by this amendment
+  ⚠ pending  .specify/templates/*  -- STILL DO NOT EXIST (unchanged from v1.0.0)
+
+Deferred TODOs:      unchanged from v1.0.0 (CLINICAL_REVIEWER, ENGINE_B_REVIEWER)
+-->
+
+<!--
+SYNC IMPACT REPORT
+==================
 Version change:      (none) → 1.0.0
 Bump rationale:      Initial ratification. No prior constitution existed at
                      `.specify/memory/constitution.md`; this is the first adoption,
                      so semantic versioning starts at 1.0.0 rather than a bump.
 
-Source of authority: `HARNESS (1).md` v1.0 (21 Aug 2026), Parts II, III, IV, VII, IX, X, XI.
+Source of authority: `HARNESS.md` v1.0 (21 Aug 2026), Parts II, III, IV, VII, IX, X, XI.
                      Part II is declared binding by the source document; its ten
                      invariants become Principles I–X verbatim in intent.
 
@@ -45,8 +78,8 @@ Deferred TODOs:
 **Pharmacogenomic and n-of-1 therapeutic decision support — a safety-critical medical AI harness.**
 
 This constitution is binding on all contributors, human and agent. It derives its authority from
-`HARNESS (1).md` v1.0, whose Part II declares its invariants binding and enforced "by types or
-tests, not convention." Where this document and `HARNESS (1).md` disagree, `HARNESS (1).md` governs
+`HARNESS.md` v1.0, whose Part II declares its invariants binding and enforced "by types or
+tests, not convention." Where this document and `HARNESS.md` disagree, `HARNESS.md` governs
 and this document MUST be amended to match.
 
 ## Governing Thesis
@@ -302,7 +335,7 @@ The line the product MUST NOT cross:
 | `engines` | `domain` | `ai`, `evidence`, `platform`, `api` |
 | `evidence` | `domain` | `ai`, `engines`, `api` |
 | `ai/agents`, `ai/gate` | `domain` | `engines`, `evidence`, `platform`, `api` |
-| `ai/graph` | `domain`, `engines`, `evidence`, `ai/agents`, `ai/gate` | `platform.db`, `api` |
+| `ai/orchestration` | `domain`, `engines`, `evidence`, `ai/agents`, `ai/gate` | `platform.db`, `api` |
 | `platform` | `domain` | `engines`, `ai` |
 | `api` | all | — |
 
@@ -335,7 +368,7 @@ full functionality retained.
 
 **Anything that affects output MUST be pinned and recorded in `RunManifest`:** the `uv.lock` hash,
 every tool image digest and version, corpus snapshot IDs per corpus, severity policy table version,
-embedding model name and version, LLM model identifier, temperature and seed, golden-set version,
+embedding model name and version, LLM model identifier, golden-set version,
 and application `spec_version`. If it affects output and is not on that list, it is a reproducibility
 bug.
 
@@ -408,7 +441,7 @@ covertly-LLM-assisted engine and reports the result as fact.
 ## Governance
 
 **Supremacy.** This constitution supersedes all other development practices, including `AGENTS.md`,
-`ARCHITECTURE-V2.md`, and any agent instruction file. Where it conflicts with `HARNESS (1).md`, the
+`ARCHITECTURE-V2.md`, and any agent instruction file. Where it conflicts with `HARNESS.md`, the
 source document governs and this constitution MUST be amended within the same pull request.
 
 **Amendment procedure.** An amendment requires: (a) a pull request modifying this file; (b) a Sync
@@ -444,4 +477,4 @@ the determinism constraint; the divergences are enumerated in `CLAUDE.md` and re
 order given above. Ratification records the standard, not conformance to it. Existing violating code
 MUST NOT be cited as precedent.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-08-21
+**Version**: 1.0.1 | **Ratified**: 2026-08-21 | **Last Amended**: 2026-08-23
